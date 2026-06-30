@@ -125,6 +125,12 @@
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <WebServer.h>   // Per interfaccia web
 #include <ArduinoJson.h> // Per interfaccia web
+
+// ═══ MQTT / Home Assistant (integrazione di Lollo) ═══
+// Modulo separato in mqtt_oraquadra.h (incluso piu' avanti, dopo le globali).
+// Per disabilitare del tutto l'MQTT: mettere ENABLE_MQTT a false qui sotto.
+#define ENABLE_MQTT true
+
 // Abilita la logica invertita per i pulsanti.
 // Definisci BUTTON_LOGIC_INVERTED come 1 per pulsanti NA verso GND (pull-up, premi per GND).
 // Definisci BUTTON_LOGIC_INVERTED come 0 per pulsanti touch (pull-down, premi per VCC).
@@ -255,7 +261,7 @@
 #define DRIFT_BLUR_AMOUNT 172     // Quantità di blur/fade (0-255)
 
 // Strutture e costanti per EEPROM / EEPROM structures and constants
-#define EEPROM_SIZE 512
+#define EEPROM_SIZE 1024  // Ampliato (era 512) per la configurazione MQTT a partire da 512
 #define EEPROM_DIGITAL_OVERLAY_ADDR 40
 #define EEPROM_DIGITAL_START_ADDR 41
 #define EEPROM_DIGITAL_DURATION_ADDR 42
@@ -313,6 +319,18 @@ uint8_t scrollEnabledRaw = 0;                 // Scroll abilitato RAW
 
 uint8_t currentPreset;
 int intBrightness;
+
+// ═══ Variabili modalita RANDOM e TEST (feature MQTT di Lollo) ═══
+// Dichiarate qui (prima del display e di updateCurrentTimeFromTZ) perche'
+// usate sia dal display sia dal modulo mqtt_oraquadra.h.
+bool     randomModeEnabled   = false;   // cambio automatico effetti
+uint32_t lastRandomChange    = 0;
+uint32_t randomChangeInterval = 30000;  // 30 s (in millisecondi)
+bool     testModeEnabled     = false;   // mostra un orario fittizio
+uint32_t testModeStartTime   = 0;
+uint8_t  testHour            = 9;
+uint8_t  testMinute          = 1;
+
 uint8_t gHue = 0;
 struct Drop {
     uint8_t x;
@@ -5254,6 +5272,12 @@ void updateLavaEffect() {
     FastLED.show();
 }
 
+// ═══ Modulo MQTT / Home Assistant ═══
+// Incluso qui: tutte le variabili globali e le funzioni a cui fa riferimento
+// (clockColors, currentBlink, displayOff, intBrightness, applyPreset, ecc.)
+// sono gia' dichiarate sopra. setup()/loop() chiamano i suoi hook.
+#include "mqtt_oraquadra.h"
+
 void setup() {
    Serial.begin(115200);
    Serial.println("START");
@@ -5545,6 +5569,11 @@ void setup() {
        
        // Avvia il server web
        setupWebServer();
+
+       // ═══ MQTT: carica config da EEPROM, inizializza client, registra route web ═══
+       loadMqttConfigFromEEPROM();
+       setupMQTT();
+       setupMqttWebRoutes();
    }
    // =========================================================================
    // FASE 8: APPLICA IL PRESET SALVATO
@@ -5910,6 +5939,13 @@ void updateCurrentTimeFromTZ() {
     currentHour   = myTZ.hour();    // ora locale con fuso e ora legale
     currentMinute = myTZ.minute();
     currentSecond = myTZ.second();
+
+    // ═══ MODALITA TEST: sovrascrive l'ora reale con un orario fittizio ═══
+    // (un solo punto di iniezione: tutti i display leggono currentHour/Minute)
+    if (testModeEnabled) {
+        currentHour   = testHour;
+        currentMinute = testMinute;
+    }
 }
 
 
@@ -5919,6 +5955,9 @@ void loop() {
 // Aggiorna ezTime (NTP, DST) e le variabili usate dal display
     events();                 // ezTime
     updateCurrentTimeFromTZ();  // allinea currentHour/Minute/Second a myTZ
+
+    // ═══ MQTT + modalita random/test: mantenimento connessione e task periodici ═══
+    mqttPeriodicTasks(millis());
 
 // Gestione luminosità giorno/sera e spegnimento notturno
 static bool wasNightTime = false;
