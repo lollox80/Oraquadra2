@@ -1,0 +1,507 @@
+# ═══════════════════════════════════════════════════════════════
+# CONFIGURAZIONE HOME ASSISTANT per OraQuadra2 via MQTT
+# ═══════════════════════════════════════════════════════════════
+# 
+# Questo file include TUTTI i sensori che avevi nella versione ESPHome
+# precedente + eventuali nuovi parametri del progetto aggiornato.
+# 
+# Aggiungi questo contenuto al tuo configuration.yaml
+# oppure crea un file packages/oraquadra2.yaml
+#
+# ═══════════════════════════════════════════════════════════════
+
+mqtt:
+  # ═══════════════════════════════════════════════════════════════
+  # LIGHT - Entità principale per controllare l'orologio
+  # ═══════════════════════════════════════════════════════════════
+  
+  light:
+    - name: "OraQuadra"
+      unique_id: oraquadra2_main_light
+      state_topic: "oraquadra2/state/clock/active"
+      command_topic: "oraquadra2/cmd/power"
+      brightness_state_topic: "oraquadra2/state/brightness"
+      brightness_command_topic: "oraquadra2/cmd/brightness"
+      brightness_scale: 100
+      payload_on: "ON"
+      payload_off: "OFF"
+      availability_topic: "oraquadra2/status"
+      payload_available: "online"
+      payload_not_available: "offline"
+      optimistic: false
+      qos: 1
+      retain: true
+
+  # ═══════════════════════════════════════════════════════════════
+  # SENSORI - Stati e informazioni
+  # ═══════════════════════════════════════════════════════════════
+  
+  sensor:
+    # ─────────────────────────────────────────────────────────────
+    # WiFi e Connettività
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra WiFi RSSI"
+      unique_id: oraquadra2_wifi_rssi
+      state_topic: "oraquadra2/state/wifi/rssi"
+      unit_of_measurement: "dBm"
+      device_class: signal_strength
+      state_class: measurement
+      availability_topic: "oraquadra2/status"
+      icon: mdi:wifi
+      
+    - name: "OraQuadra WiFi SSID"
+      unique_id: oraquadra2_wifi_ssid
+      state_topic: "oraquadra2/state/wifi/ssid"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:wifi-settings
+      
+    - name: "OraQuadra IP"
+      unique_id: oraquadra2_ip
+      state_topic: "oraquadra2/state/wifi/ip"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:ip-network
+      
+    - name: "OraQuadra Stato Connessione"
+      unique_id: oraquadra2_connection_state
+      state_topic: "oraquadra2/state/connection/state"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:connection
+    
+    # ─────────────────────────────────────────────────────────────
+    # LED e Luminosità
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra LED Attivi"
+      unique_id: oraquadra2_led_active
+      state_topic: "oraquadra2/state/led/active"
+      unit_of_measurement: "LED"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:led-on
+      
+    - name: "OraQuadra Luminosità"
+      unique_id: oraquadra2_brightness
+      state_topic: "oraquadra2/state/brightness"
+      unit_of_measurement: "%"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:brightness-6
+    
+    # ─────────────────────────────────────────────────────────────
+    # Sistema e Performance
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra Memoria Libera"
+      unique_id: oraquadra2_memory_free
+      state_topic: "oraquadra2/state/memory/free"
+      unit_of_measurement: "bytes"
+      device_class: data_size
+      state_class: measurement
+      availability_topic: "oraquadra2/status"
+      icon: mdi:memory
+      
+    - name: "OraQuadra Memoria Totale"
+      unique_id: oraquadra2_memory_total
+      state_topic: "oraquadra2/state/memory/total"
+      unit_of_measurement: "bytes"
+      device_class: data_size
+      availability_topic: "oraquadra2/status"
+      icon: mdi:memory
+      
+    - name: "OraQuadra Memoria Usata %"
+      unique_id: oraquadra2_memory_usage
+      state_topic: "oraquadra2/state/memory/usage_percent"
+      unit_of_measurement: "%"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:memory
+      
+    - name: "OraQuadra CPU Usage"
+      unique_id: oraquadra2_cpu_usage
+      state_topic: "oraquadra2/state/cpu/usage"
+      unit_of_measurement: "%"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:chip
+      
+    - name: "OraQuadra CPU Frequency"
+      unique_id: oraquadra2_cpu_freq
+      state_topic: "oraquadra2/state/cpu/frequency"
+      unit_of_measurement: "MHz"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:speedometer
+      
+    - name: "OraQuadra Temperatura"
+      unique_id: oraquadra2_temperature
+      state_topic: "oraquadra2/state/temperature"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability_topic: "oraquadra2/status"
+      icon: mdi:thermometer
+      
+    - name: "OraQuadra Uptime"
+      unique_id: oraquadra2_uptime
+      state_topic: "oraquadra2/state/system/uptime"
+      unit_of_measurement: "s"
+      device_class: duration
+      state_class: total_increasing
+      availability_topic: "oraquadra2/status"
+      icon: mdi:timer-sand
+    
+    # ─────────────────────────────────────────────────────────────
+    # Versioni e Info Sistema
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra Versione Firmware"
+      unique_id: oraquadra2_firmware_version
+      state_topic: "oraquadra2/state/system/firmware"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:chip
+      
+    - name: "OraQuadra Chip Model"
+      unique_id: oraquadra2_chip_model
+      state_topic: "oraquadra2/state/system/chip_model"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:chip
+    
+    # ─────────────────────────────────────────────────────────────
+    # Preset e Modalità
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra Preset Corrente"
+      unique_id: oraquadra2_preset_current
+      state_topic: "oraquadra2/state/preset/current"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:palette
+      
+    - name: "OraQuadra Preset Nome"
+      unique_id: oraquadra2_preset_name
+      state_topic: "oraquadra2/state/preset/name"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:palette-outline
+      
+    - name: "OraQuadra Modalità"
+      unique_id: oraquadra2_mode
+      state_topic: "oraquadra2/state/mode/current"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:palette-swatch
+    
+    # ─────────────────────────────────────────────────────────────
+    # Animazioni
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra Velocità Animazione"
+      unique_id: oraquadra2_animation_speed
+      state_topic: "oraquadra2/state/animation/speed"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:speedometer
+      
+    - name: "OraQuadra Effetto Corrente"
+      unique_id: oraquadra2_effect
+      state_topic: "oraquadra2/state/effect/current"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:auto-fix
+    
+    # ─────────────────────────────────────────────────────────────
+    # Colore RGB
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra Colore RGB"
+      unique_id: oraquadra2_color_rgb
+      state_topic: "oraquadra2/state/color/rgb"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:palette-advanced
+      value_template: "{{ value_json.r }},{{ value_json.g }},{{ value_json.b }}"
+    
+    # ─────────────────────────────────────────────────────────────
+    # Pulsanti
+    # ─────────────────────────────────────────────────────────────
+    
+    - name: "OraQuadra Mode Button"
+      unique_id: oraquadra2_mode_button
+      state_topic: "oraquadra2/state/button/mode"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:gesture-tap-button
+      
+    - name: "OraQuadra Seconds Button"
+      unique_id: oraquadra2_seconds_button
+      state_topic: "oraquadra2/state/button/seconds"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:gesture-tap-button
+
+  # ═══════════════════════════════════════════════════════════════
+  # BINARY SENSORS - Stati ON/OFF
+  # ═══════════════════════════════════════════════════════════════
+  
+  binary_sensor:
+    - name: "OraQuadra WiFi Connesso"
+      unique_id: oraquadra2_wifi_connected
+      state_topic: "oraquadra2/state/wifi/connected"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: connectivity
+      availability_topic: "oraquadra2/status"
+      
+    - name: "OraQuadra Attivo"
+      unique_id: oraquadra2_clock_active
+      state_topic: "oraquadra2/state/clock/active"
+      payload_on: "ON"
+      payload_off: "OFF"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:clock-check
+      
+    - name: "OraQuadra Secondi Lampeggianti"
+      unique_id: oraquadra2_seconds_flashing
+      state_topic: "oraquadra2/state/seconds/flashing"
+      payload_on: "ON"
+      payload_off: "OFF"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:clock-time-eight
+
+  # ═══════════════════════════════════════════════════════════════
+  # NUMBER - Controlli numerici
+  # ═══════════════════════════════════════════════════════════════
+  
+  number:
+    - name: "OraQuadra Preset"
+      unique_id: oraquadra2_preset_control
+      state_topic: "oraquadra2/state/preset/current"
+      command_topic: "oraquadra2/cmd/preset"
+      min: 0
+      max: 9
+      step: 1
+      mode: slider
+      availability_topic: "oraquadra2/status"
+      icon: mdi:palette
+      
+    - name: "OraQuadra Luminosità Control"
+      unique_id: oraquadra2_brightness_control
+      state_topic: "oraquadra2/state/brightness"
+      command_topic: "oraquadra2/cmd/brightness"
+      min: 0
+      max: 100
+      step: 1
+      mode: slider
+      unit_of_measurement: "%"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:brightness-6
+      
+    - name: "OraQuadra Velocità Animazione Control"
+      unique_id: oraquadra2_animation_speed_control
+      state_topic: "oraquadra2/state/animation/speed"
+      command_topic: "oraquadra2/cmd/animation/speed"
+      min: 1
+      max: 10
+      step: 1
+      mode: slider
+      availability_topic: "oraquadra2/status"
+      icon: mdi:speedometer
+
+  # ═══════════════════════════════════════════════════════════════
+  # SELECT - Menu a tendina
+  # ═══════════════════════════════════════════════════════════════
+  
+  select:
+    - name: "OraQuadra Modalità Select"
+      unique_id: oraquadra2_mode_select
+      state_topic: "oraquadra2/state/mode/current"
+      command_topic: "oraquadra2/cmd/mode"
+      options:
+        - "normale"
+        - "arcobaleno"
+        - "fade"
+        - "pulse"
+        - "slide"
+        - "random"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:palette-swatch
+      
+    - name: "OraQuadra Effetto Select"
+      unique_id: oraquadra2_effect_select
+      state_topic: "oraquadra2/state/effect/current"
+      command_topic: "oraquadra2/cmd/effect"
+      options:
+        - "none"
+        - "fadeIn"
+        - "fadeOut"
+        - "slideLeft"
+        - "slideRight"
+        - "wipe"
+        - "sparkle"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:auto-fix
+
+  # ═══════════════════════════════════════════════════════════════
+  # BUTTON - Pulsanti per azioni
+  # ═══════════════════════════════════════════════════════════════
+  
+  button:
+    - name: "OraQuadra Restart"
+      unique_id: oraquadra2_restart
+      command_topic: "oraquadra2/cmd/restart"
+      payload_press: "RESTART"
+      availability_topic: "oraquadra2/status"
+      icon: mdi:restart
+      device_class: restart
+
+# ═══════════════════════════════════════════════════════════════
+# CUSTOMIZZAZIONI (opzionale)
+# ═══════════════════════════════════════════════════════════════
+
+homeassistant:
+  customize:
+    # OraQuadra Main Light
+    light.oraquadra:
+      friendly_name: "OraQuadra Word Clock"
+      icon: mdi:clock-digital
+      
+    # Sensori
+    sensor.oraquadra_wifi_rssi:
+      friendly_name: "Segnale WiFi"
+      
+    sensor.oraquadra_led_attivi:
+      friendly_name: "LED Accesi"
+      
+    sensor.oraquadra_luminosita:
+      friendly_name: "Luminosità Attuale"
+      
+    sensor.oraquadra_memoria_libera:
+      friendly_name: "RAM Disponibile"
+      
+    sensor.oraquadra_temperatura:
+      friendly_name: "Temperatura CPU"
+      
+    sensor.oraquadra_uptime:
+      friendly_name: "Tempo di Attività"
+      
+    sensor.oraquadra_versione_firmware:
+      friendly_name: "Versione Software"
+
+# ═══════════════════════════════════════════════════════════════
+# GRUPPI (opzionale - per organizzare nell'interfaccia)
+# ═══════════════════════════════════════════════════════════════
+
+group:
+  oraquadra_controlli:
+    name: "OraQuadra Controlli"
+    entities:
+      - light.oraquadra
+      - number.oraquadra_luminosita_control
+      - number.oraquadra_preset
+      - select.oraquadra_modalita_select
+      - select.oraquadra_effetto_select
+      - number.oraquadra_velocita_animazione_control
+      
+  oraquadra_stato:
+    name: "OraQuadra Stato"
+    entities:
+      - binary_sensor.oraquadra_attivo
+      - binary_sensor.oraquadra_wifi_connesso
+      - sensor.oraquadra_led_attivi
+      - sensor.oraquadra_luminosita
+      - sensor.oraquadra_preset_nome
+      - sensor.oraquadra_modalita
+      - binary_sensor.oraquadra_secondi_lampeggianti
+      
+  oraquadra_diagnostica:
+    name: "OraQuadra Diagnostica"
+    entities:
+      - sensor.oraquadra_wifi_rssi
+      - sensor.oraquadra_ip
+      - sensor.oraquadra_temperatura
+      - sensor.oraquadra_memoria_libera
+      - sensor.oraquadra_memoria_usata_percent
+      - sensor.oraquadra_cpu_usage
+      - sensor.oraquadra_uptime
+      - sensor.oraquadra_versione_firmware
+      - sensor.oraquadra_chip_model
+
+# ═══════════════════════════════════════════════════════════════
+# ESEMPIO AUTOMAZIONI
+# ═══════════════════════════════════════════════════════════════
+
+automation:
+  # Spegni orologio di notte
+  - alias: "OraQuadra - Spegni di notte"
+    trigger:
+      - platform: time
+        at: "23:00:00"
+    action:
+      - service: light.turn_off
+        target:
+          entity_id: light.oraquadra
+          
+  # Accendi orologio al mattino
+  - alias: "OraQuadra - Accendi al mattino"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    action:
+      - service: light.turn_on
+        target:
+          entity_id: light.oraquadra
+        data:
+          brightness_pct: 80
+          
+  # Abbassa luminosità sera
+  - alias: "OraQuadra - Luminosità serale"
+    trigger:
+      - platform: time
+        at: "20:00:00"
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.oraquadra_luminosita_control
+        data:
+          value: 30
+          
+  # Notifica se disconnesso
+  - alias: "OraQuadra - Notifica disconnessione"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.oraquadra_wifi_connesso
+        to: "off"
+        for: "00:05:00"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "OraQuadra Offline"
+          message: "L'orologio OraQuadra si è disconnesso dal WiFi"
+
+# ═══════════════════════════════════════════════════════════════
+# LOVELACE CARD - Esempio di card per dashboard
+# ═══════════════════════════════════════════════════════════════
+# 
+# Aggiungi questa card al tuo dashboard Lovelace:
+#
+# type: entities
+# title: OraQuadra Word Clock
+# show_header_toggle: false
+# entities:
+#   - entity: light.oraquadra
+#     name: Alimentazione
+#   - type: divider
+#   - entity: number.oraquadra_luminosita_control
+#     name: Luminosità
+#   - entity: number.oraquadra_preset
+#     name: Preset Colore
+#   - entity: sensor.oraquadra_preset_nome
+#     name: Nome Preset
+#   - entity: select.oraquadra_modalita_select
+#     name: Modalità
+#   - entity: select.oraquadra_effetto_select
+#     name: Effetto
+#   - entity: number.oraquadra_velocita_animazione_control
+#     name: Velocità
+#   - type: divider
+#   - entity: sensor.oraquadra_temperatura
+#     name: Temperatura
+#   - entity: sensor.oraquadra_wifi_rssi
+#     name: WiFi
+#   - entity: sensor.oraquadra_uptime
+#     name: Uptime
+#   - type: divider
+#   - entity: button.oraquadra_restart
+#     name: Riavvia
+
+# ═══════════════════════════════════════════════════════════════
+# FINE CONFIGURAZIONE
+# ═══════════════════════════════════════════════════════════════

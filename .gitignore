@@ -1,0 +1,16 @@
+# Artefatti di build Arduino / ESP32
+*.bin
+*.elf
+*.map
+*.hex
+build/
+.cache/
+
+# Log
+*.log
+logs_*.txt
+
+# File temporanei OS
+Thumbs.db
+.DS_Store
+desktop.ini

@@ -1,0 +1,495 @@
+substitutions:
+  device_name: oraquadra2
+  friendly_name: OraQuadra2
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Configurazione LED WS2812B - basata sul codice Arduino originale
+light:
+  - platform: esp32_rmt_led_strip
+    id: led_matrix
+    name: "${friendly_name} LED"
+    chipset: WS2812
+    pin: GPIO5  # Stesso pin del codice Arduino (LED_PIN = 5)
+    num_leds: 256
+    rgb_order: GRB
+    rmt_channel: 0
+    color_correct: [100%, 69%, 94%]
+    gamma_correct: 2.8
+    max_refresh_rate: 16ms
+    default_transition_length: 0.5s
+    effects:
+      - addressable_lambda:
+          name: "Orologio a Parole"
+          update_interval: 1s
+          lambda: |-
+            if (id(alexa_off)) {
+              for (int i = 0; i < 256; i++) it[i] = Color(0,0,0);
+              return;
+            }
+            
+            // Mappatura parole - identica al codice Arduino
+            static const uint16_t SONO_LE[] = {15,14,13,12,10,9,7,6,5,8};
+            static const uint16_t WORD_UNA[] = {57,70,89,8};
+            static const uint16_t WORD_DUE[] = {111,112,143,8};
+            static const uint16_t WORD_TRE[] = {21,22,23,8};
+            static const uint16_t WORD_QUATTRO[] = {56,57,58,59,60,61,62,8};
+            static const uint16_t WORD_CINQUE[] = {46,49,78,81,110,113,8};
+            static const uint16_t WORD_SEI[] = {34,33,32,8};
+            static const uint16_t WORD_SETTE[] = {91,92,93,94,95,8};
+            static const uint16_t WORD_OTTO[] = {28,29,30,31,8};
+            static const uint16_t WORD_NOVE[] = {101,100,99,98,8};
+            static const uint16_t WORD_DIECI[] = {68,67,66,65,64,8};
+            static const uint16_t WORD_UNDICI[] = {50,51,52,53,54,55,8};
+            static const uint16_t WORD_DODICI[] = {109,108,107,106,105,104,8};
+            static const uint16_t WORD_TREDICI[] = {21,22,23,24,25,26,27,8};
+            static const uint16_t WORD_QUATTORDICI[] = {45,44,43,42,41,40,39,38,37,36,35,8};
+            static const uint16_t WORD_QUINDICI[] = {45,50,77,82,109,114,141,146,8};
+            static const uint16_t WORD_SEDICI[] = {83,84,85,86,87,88,8};
+            static const uint16_t WORD_DICIASSETTE[] = {85,86,87,88,89,90,91,92,93,94,95,8};
+            static const uint16_t WORD_DICIOTTO[] = {24,25,26,27,28,29,30,31,8};
+            static const uint16_t WORD_DICIANNOVE[] = {107,106,105,104,103,102,101,100,99,98,8};
+            static const uint16_t WORD_VENTI[] = {16,47,48,79,80,8};
+            static const uint16_t WORD_VENTUNO[] = {75,74,73,72,71,70,69,8};
+            static const uint16_t WORD_VENTIDUE[] = {16,47,48,79,80,111,112,143,8};
+            static const uint16_t WORD_VENTITRE[] = {16,17,18,19,20,21,22,23,8};
+            static const uint16_t WORD_ZERO[] = {3,2,1,0,8};
+            static const uint16_t WORD_MINUTI[] = {250,251,252,253,254,255,8};
+            static const uint16_t WORD_E[] = {116,8};
+            static const uint16_t WORD_MUNO[] = {157,158,159,8};
+            static const uint16_t WORD_MUN[] = {239,238,8};
+            static const uint16_t WORD_MDUE[] = {246,247,248,8};
+            static const uint16_t WORD_MTRE[] = {210,211,212,8};
+            static const uint16_t WORD_MQUATTRO[] = {207,206,205,204,203,202,201,8};
+            static const uint16_t WORD_MCINQUE[] = {240,241,242,243,244,245,8};
+            static const uint16_t WORD_MSEI[] = {226,225,224,8};
+            static const uint16_t WORD_MSETTE[] = {219,220,221,222,223,8};
+            static const uint16_t WORD_MOTTO[] = {163,162,161,160,8};
+            static const uint16_t WORD_MNOVE[] = {231,230,229,228,8};
+            static const uint16_t WORD_MDIECI[] = {176,177,178,179,180,8};
+            static const uint16_t WORD_MUNDICI[] = {239,238,237,236,235,234,8};
+            static const uint16_t WORD_MDODICI[] = {169,168,167,166,165,164,8};
+            static const uint16_t WORD_MTREDICI[] = {210,211,212,213,214,215,216,8};
+            static const uint16_t WORD_MQUATTORDICI[] = {181,182,183,184,185,186,187,188,189,190,191,8};
+            static const uint16_t WORD_MQUINDICI[] = {200,199,198,197,196,195,194,193,8};
+            static const uint16_t WORD_MSEDICI[] = {175,174,173,172,171,170,8};
+            static const uint16_t WORD_MDICIASSETTE[] = {213,214,215,216,217,218,219,220,221,222,223,8};
+            static const uint16_t WORD_MDICIOTTO[] = {167,166,165,164,163,162,161,160,8};
+            static const uint16_t WORD_MDICIANNOVE[] = {237,236,235,234,233,232,231,230,229,228,8};
+            static const uint16_t WORD_MVENT[] = {138,137,136,135,8};
+            static const uint16_t WORD_MVENTI[] = {138,137,136,135,134,8};
+            static const uint16_t WORD_MTRENT[] = {133,132,131,130,129,8};
+            static const uint16_t WORD_MTRENTA[] = {133,132,131,130,129,128,8};
+            static const uint16_t WORD_MQUARANT[] = {119,120,121,122,123,124,125,8};
+            static const uint16_t WORD_MQUARANTA[] = {119,120,121,122,123,124,125,126,8};
+            static const uint16_t WORD_MCINQUANT[] = {148,149,150,151,152,153,154,155,8};
+            static const uint16_t WORD_MCINQUANTA[] = {148,149,150,151,152,153,154,155,156,8};
+            
+            auto accendi_parola = [&](const uint16_t* arr, Color c) {
+              for (int i = 0; arr[i] != 8; i++) {
+                it[arr[i]] = c;
+              }
+            };
+            
+            // Pulisci tutto
+            for (int i = 0; i < 256; i++) it[i] = Color(0,0,0);
+            
+            // "SONO LE" sempre visibile
+            accendi_parola(SONO_LE, Color(0,0,255));
+            
+            int ora = id(esptime).now().hour;
+            int minuti = id(esptime).now().minute;
+            
+            // Ore - gestione 24 ore come nel codice Arduino
+            switch (ora) {
+              case 1: accendi_parola(WORD_UNA, Color(0,0,255)); break;
+              case 2: accendi_parola(WORD_DUE, Color(0,0,255)); break;
+              case 3: accendi_parola(WORD_TRE, Color(0,0,255)); break;
+              case 4: accendi_parola(WORD_QUATTRO, Color(0,0,255)); break;
+              case 5: accendi_parola(WORD_CINQUE, Color(0,0,255)); break;
+              case 6: accendi_parola(WORD_SEI, Color(0,0,255)); break;
+              case 7: accendi_parola(WORD_SETTE, Color(0,0,255)); break;
+              case 8: accendi_parola(WORD_OTTO, Color(0,0,255)); break;
+              case 9: accendi_parola(WORD_NOVE, Color(0,0,255)); break;
+              case 10: accendi_parola(WORD_DIECI, Color(0,0,255)); break;
+              case 11: accendi_parola(WORD_UNDICI, Color(0,0,255)); break;
+              case 12: accendi_parola(WORD_DODICI, Color(0,0,255)); break;
+              case 13: accendi_parola(WORD_TREDICI, Color(0,0,255)); break;
+              case 14: accendi_parola(WORD_QUATTORDICI, Color(0,0,255)); break;
+              case 15: accendi_parola(WORD_QUINDICI, Color(0,0,255)); break;
+              case 16: accendi_parola(WORD_SEDICI, Color(0,0,255)); break;
+              case 17: accendi_parola(WORD_DICIASSETTE, Color(0,0,255)); break;
+              case 18: accendi_parola(WORD_DICIOTTO, Color(0,0,255)); break;
+              case 19: accendi_parola(WORD_DICIANNOVE, Color(0,0,255)); break;
+              case 20: accendi_parola(WORD_VENTI, Color(0,0,255)); break;
+              case 21: accendi_parola(WORD_VENTUNO, Color(0,0,255)); break;
+              case 22: accendi_parola(WORD_VENTIDUE, Color(0,0,255)); break;
+              case 23: accendi_parola(WORD_VENTITRE, Color(0,0,255)); break;
+              case 0: accendi_parola(WORD_ZERO, Color(0,0,255)); break;
+            }
+            
+            // Minuti - logica identica al codice Arduino
+            if (minuti > 0) {
+              accendi_parola(WORD_E, Color(0,0,255));
+              if (minuti <= 19) {
+                switch (minuti) {
+                  case 1: accendi_parola(WORD_MUNO, Color(0,0,255)); break;
+                  case 2: accendi_parola(WORD_MDUE, Color(0,0,255)); break;
+                  case 3: accendi_parola(WORD_MTRE, Color(0,0,255)); break;
+                  case 4: accendi_parola(WORD_MQUATTRO, Color(0,0,255)); break;
+                  case 5: accendi_parola(WORD_MCINQUE, Color(0,0,255)); break;
+                  case 6: accendi_parola(WORD_MSEI, Color(0,0,255)); break;
+                  case 7: accendi_parola(WORD_MSETTE, Color(0,0,255)); break;
+                  case 8: accendi_parola(WORD_MOTTO, Color(0,0,255)); break;
+                  case 9: accendi_parola(WORD_MNOVE, Color(0,0,255)); break;
+                  case 10: accendi_parola(WORD_MDIECI, Color(0,0,255)); break;
+                  case 11: accendi_parola(WORD_MUNDICI, Color(0,0,255)); break;
+                  case 12: accendi_parola(WORD_MDODICI, Color(0,0,255)); break;
+                  case 13: accendi_parola(WORD_MTREDICI, Color(0,0,255)); break;
+                  case 14: accendi_parola(WORD_MQUATTORDICI, Color(0,0,255)); break;
+                  case 15: accendi_parola(WORD_MQUINDICI, Color(0,0,255)); break;
+                  case 16: accendi_parola(WORD_MSEDICI, Color(0,0,255)); break;
+                  case 17: accendi_parola(WORD_MDICIASSETTE, Color(0,0,255)); break;
+                  case 18: accendi_parola(WORD_MDICIOTTO, Color(0,0,255)); break;
+                  case 19: accendi_parola(WORD_MDICIANNOVE, Color(0,0,255)); break;
+                }
+              } else {
+                int dec = minuti / 10;
+                int unit = minuti % 10;
+                switch (dec) {
+                  case 2: if (unit == 1 || unit == 8) accendi_parola(WORD_MVENT, Color(0,0,255)); else accendi_parola(WORD_MVENTI, Color(0,0,255)); break;
+                  case 3: if (unit == 1 || unit == 8) accendi_parola(WORD_MTRENT, Color(0,0,255)); else accendi_parola(WORD_MTRENTA, Color(0,0,255)); break;
+                  case 4: if (unit == 1 || unit == 8) accendi_parola(WORD_MQUARANT, Color(0,0,255)); else accendi_parola(WORD_MQUARANTA, Color(0,0,255)); break;
+                  case 5: if (unit == 1 || unit == 8) accendi_parola(WORD_MCINQUANT, Color(0,0,255)); else accendi_parola(WORD_MCINQUANTA, Color(0,0,255)); break;
+                }
+                if (unit > 0) {
+                  if (unit == 1) accendi_parola(WORD_MUN, Color(0,0,255));
+                  else {
+                    switch (unit) {
+                      case 2: accendi_parola(WORD_MDUE, Color(0,0,255)); break;
+                      case 3: accendi_parola(WORD_MTRE, Color(0,0,255)); break;
+                      case 4: accendi_parola(WORD_MQUATTRO, Color(0,0,255)); break;
+                      case 5: accendi_parola(WORD_MCINQUE, Color(0,0,255)); break;
+                      case 6: accendi_parola(WORD_MSEI, Color(0,0,255)); break;
+                      case 7: accendi_parola(WORD_MSETTE, Color(0,0,255)); break;
+                      case 8: accendi_parola(WORD_MOTTO, Color(0,0,255)); break;
+                      case 9: accendi_parola(WORD_MNOVE, Color(0,0,255)); break;
+                    }
+                  }
+                }
+              }
+              accendi_parola(WORD_MINUTI, Color(0,0,255));
+            }
+            
+            // Blink secondi - come nel codice Arduino
+            if (id(blink_seconds)) {
+              int sec = id(esptime).now().second;
+              if (sec % 2 == 0) {
+                it[116] = Color(255,255,255); // Bianco lampeggiante
+              } else {
+                it[116] = Color(0,0,0);
+              }
+            }
+      - addressable_rainbow:
+          name: "Rainbow"
+          speed: 10
+          width: 50
+      - addressable_color_wipe: 
+          name: "Color Wipe"
+          colors:
+            - red: 100%
+              green: 0%
+              blue: 0%
+              num_leds: 85
+            - red: 0%
+              green: 100%
+              blue: 0%
+              num_leds: 85
+            - red: 0%
+              green: 0%
+              blue: 100%
+              num_leds: 86
+          add_led_interval: 100ms
+      - addressable_lambda:
+          name: "Matrix"
+          update_interval: 50ms
+          lambda: |-
+            static float t = 0;
+            t += 0.1;
+            
+            // Effetto Matrix: colonne di caratteri che cadono
+            for (int i = 0; i < 256; i++) {
+              int x = i % 16;
+              int y = i / 16;
+              float val = sin(x * 0.5 + t) * 0.5 + 0.5;
+              float speed = sin(x * 0.2) * 0.5 + 1.0;
+              float pos = fmod(y + t * speed, 16.0);
+              float brightness = (sin(pos * 0.5) + 1.0) / 2.0;
+              it[i] = Color(0, val * 255 * brightness, 0);
+            }
+      - addressable_lambda:
+          name: "Matrix2"
+          update_interval: 50ms
+          lambda: |-
+            static float t = 0;
+            t += 0.1;
+            
+            // Effetto Matrix alternativo: onde di caratteri
+            for (int i = 0; i < 256; i++) {
+              int x = i % 16;
+              int y = i / 16;
+              float dist = sqrt(pow(x - 7.5, 2) + pow(y - 7.5, 2));
+              float angle = atan2(y - 7.5, x - 7.5);
+              float wave = sin(angle * 4 + t * 2) * 0.5 + 0.5;
+              float val = (sin(dist * 0.5 - t * 2) + 1.0) / 2.0 * wave;
+              it[i] = Color(0, val * 255, 0);
+            }
+      - addressable_lambda:
+          name: "Bianco"
+          update_interval: 1s
+          lambda: |-
+            for (int i = 0; i < 256; i++) {
+              it[i] = Color(255, 255, 255);
+            }
+      - addressable_lambda:
+          name: "Blu"
+          update_interval: 1s
+          lambda: |-
+            for (int i = 0; i < 256; i++) {
+              it[i] = Color(0, 0, 255);
+            }
+      - addressable_lambda:
+          name: "Rosso"
+          update_interval: 1s
+          lambda: |-
+            for (int i = 0; i < 256; i++) {
+              it[i] = Color(255, 0, 0);
+            }
+      - addressable_lambda:
+          name: "Verde"
+          update_interval: 1s
+          lambda: |-
+            for (int i = 0; i < 256; i++) {
+              it[i] = Color(0, 255, 0);
+            }
+      - addressable_lambda:
+          name: "Viola"
+          update_interval: 1s
+          lambda: |-
+            for (int i = 0; i < 256; i++) {
+              it[i] = Color(255, 0, 255);
+            }
+      - addressable_lambda:
+          name: "Random"
+          update_interval: 1s
+          lambda: |-
+            for (int i = 0; i < 256; i++) {
+              it[i] = Color(random(256), random(256), random(256));
+            }
+
+# Configurazione WiFi
+wifi:
+  ssid: "Lollo&Je&Luce"  # Nome della tua rete WiFi
+  password: "110419802106199230042020"  # Password della tua rete WiFi
+  power_save_mode: none
+  fast_connect: true
+  reboot_timeout: 5min
+  ap:
+    ssid: "${device_name}_fallback"
+    password: "12345678"
+
+# Configurazione OTA
+ota:
+  - platform: esphome
+    password: "filosofia11"
+
+# Configurazione API per Home Assistant
+api:
+  encryption:
+    key: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+
+# Configurazione NTP
+time:
+  - platform: homeassistant
+    id: esptime
+  - platform: sntp
+    id: fallback_time
+    servers:
+      - pool.ntp.org
+      - time.google.com
+
+# Variabili globali - basate sul codice Arduino
+globals:
+  - id: preset_var
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: blink_seconds
+    type: bool
+    restore_value: true
+    initial_value: "true"
+  - id: alexa_off
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: current_mode
+    type: int
+    restore_value: true
+    initial_value: "0"
+
+# Configurazione pulsanti - stessi pin del codice Arduino
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO7  # BUTTON_MODE dal codice Arduino
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "${friendly_name} Mode Button"
+    id: pulsante_mode
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      then:
+        - lambda: |-
+            id(preset_var) = (id(preset_var) + 1) % 11;
+            // Applica preset come nel codice Arduino
+            switch(id(preset_var)) {
+              case 0: id(led_matrix).turn_on().set_effect("Orologio a Parole"); break;
+              case 1: id(led_matrix).turn_on().set_effect("Rainbow"); break;
+              case 2: id(led_matrix).turn_on().set_effect("Matrix"); break;
+              case 3: id(led_matrix).turn_on().set_effect("Matrix2"); break;
+              case 4: id(led_matrix).turn_on().set_effect("Color Wipe"); break;
+              case 5: id(led_matrix).turn_on().set_effect("Bianco"); break;
+              case 6: id(led_matrix).turn_on().set_effect("Blu"); break;
+              case 7: id(led_matrix).turn_on().set_effect("Rosso"); break;
+              case 8: id(led_matrix).turn_on().set_effect("Verde"); break;
+              case 9: id(led_matrix).turn_on().set_effect("Viola"); break;
+              case 10: id(led_matrix).turn_on().set_effect("Random"); break;
+            }
+            
+  - platform: gpio
+    pin:
+      number: GPIO6  # BUTTON_SEC dal codice Arduino
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "${friendly_name} Seconds Button"
+    id: pulsante_secondi
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      then:
+        - lambda: |-
+            id(blink_seconds) = !id(blink_seconds);
+
+# Configurazione logger
+logger:
+  level: INFO
+
+# Configurazione web server
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: "filosofia11"
+  include_internal: true
+  version: 2
+
+# Switch per il web server
+switch:
+  - platform: restart
+    name: "${friendly_name} Restart"
+    id: restart_switch
+
+  - platform: template
+    name: "${friendly_name} Seconds Blink"
+    id: seconds_switch
+    optimistic: true
+    turn_on_action:
+      - lambda: |-
+          id(blink_seconds) = true;
+    turn_off_action:
+      - lambda: |-
+          id(blink_seconds) = false;
+
+# Number per il web server
+number:
+  - platform: template
+    name: "${friendly_name} Brightness"
+    id: brightness_number
+    optimistic: true
+    min_value: 0
+    max_value: 255
+    step: 1
+    on_value:
+      then:
+        - lambda: |-
+            id(led_matrix).turn_on().set_brightness(x);
+
+# Select per il web server
+select:
+  - platform: template
+    name: "${friendly_name} Effect"
+    id: effect_select
+    optimistic: true
+    options:
+      - "Orologio a Parole"
+      - "Rainbow"
+      - "Matrix"
+      - "Matrix2"
+      - "Color Wipe"
+      - "Bianco"
+      - "Blu"
+      - "Rosso"
+      - "Verde"
+      - "Viola"
+      - "Random"
+    on_value:
+      then:
+        - lambda: |-
+            id(led_matrix).turn_on().set_effect(x);
+
+# Gestione luminosità automatica giorno/notte
+interval:
+  - interval: 1min
+    then:
+      - lambda: |-
+          int hour = id(esptime).now().hour;
+          int brightness = (hour < 7 || hour >= 19) ? 32 : 64;  // Come nel codice Arduino
+          id(led_matrix).turn_on().set_brightness(brightness);
+          id(brightness_number).publish_state(float(brightness));
+
+# Sensori di sistema
+sensor:
+  - platform: internal_temperature
+    name: "${friendly_name} Temperature"
+    id: temp_sensor
+    update_interval: 60s
+    filters:
+      - lambda: |-
+          return x * (9.0/5.0) + 32.0;
+    on_value:
+      then:
+        - lambda: |-
+            if (x > 85.0) {
+              ESP_LOGE("main", "Temperatura troppo alta: %.1f°F", x);
+              id(led_matrix).turn_on().set_brightness(32);
+            }
+
+  - platform: uptime
+    name: "${friendly_name} Uptime"
+    id: uptime_sensor
+    update_interval: 60s
+
+  - platform: wifi_signal
+    name: "${friendly_name} WiFi Signal"
+    update_interval: 60s
+    id: wifi_strength

@@ -1,0 +1,275 @@
+type: vertical-stack
+cards:
+  # =============================================================================
+  # HEADER CARD - INFORMAZIONI PRINCIPALI
+  # =============================================================================
+  - type: custom:mushroom-title-card
+    title: "OraQuadra2 - Orologio a Parole"
+    subtitle: "Controllo completo del dispositivo"
+    icon: mdi:clock-outline
+
+  # =============================================================================
+  # STATO DISPOSITIVO - CHIP CARDS
+  # =============================================================================
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-entity-card
+        entity: sensor.oraquadra2_uptime
+        name: "Uptime"
+        icon: mdi:clock-time-four-outline
+        primary_info: name
+        secondary_info: last-updated
+        icon_color: blue
+
+      - type: custom:mushroom-entity-card
+        entity: sensor.oraquadra2_wifi_signal
+        name: "WiFi"
+        icon: mdi:wifi
+        primary_info: name
+        secondary_info: state
+        icon_color: green
+
+      - type: custom:mushroom-entity-card
+        entity: binary_sensor.oraquadra2_connesso
+        name: "Stato"
+        icon: mdi:connection
+        primary_info: name
+        secondary_info: state
+        icon_color: |
+          [[[
+            if (states['binary_sensor.oraquadra2_connesso'].state === 'on')
+              return 'green';
+            return 'red';
+          ]]]
+
+  # =============================================================================
+  # CONTROLLI PRINCIPALI
+  # =============================================================================
+  - type: custom:mushroom-light-card
+    entity: light.oraquadra2_led
+    name: "LED Matrix"
+    icon: mdi:led-strip
+    show_brightness_control: true
+    show_color_control: false
+    show_effects_control: true
+    effects_list:
+      - "🕐 Orologio a Parole"
+      - "🌊 MATRIX - Gocce Verdi"
+      - "🌊 MATRIX2 - Completamento Auto"
+      - "❌ None - Spegni LED"
+      - "🔌 Preset 11 - Spento Completo"
+
+  # =============================================================================
+  # PRESET SELECTOR
+  # =============================================================================
+  - type: custom:mushroom-select-card
+    entity: select.oraquadra2_preset
+    name: "Preset"
+    icon: mdi:palette
+    icon_color: |
+      [[[
+        const preset = states['select.oraquadra2_preset'].state;
+        if (preset.includes('Rainbow')) return 'rainbow';
+        if (preset.includes('Verde')) return 'green';
+        if (preset.includes('Blu')) return 'blue';
+        if (preset.includes('Giallo')) return 'yellow';
+        if (preset.includes('Ciano')) return 'cyan';
+        if (preset.includes('Rosa')) return 'pink';
+        if (preset.includes('Viola')) return 'purple';
+        if (preset.includes('Arancione')) return 'orange';
+        if (preset.includes('Acqua')) return 'teal';
+        if (preset.includes('Spegni')) return 'red';
+        return 'grey';
+      ]]]
+
+  # =============================================================================
+  # CONTROLLI AVANZATI
+  # =============================================================================
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-template-card
+        primary: "Luminosità"
+        secondary: "{{ states('sensor.oraquadra2_luminosita_attuale') }}%"
+        icon: mdi:brightness-6
+        icon_color: |
+          [[[
+            const brightness = parseInt(states['sensor.oraquadra2_luminosita_attuale'].state);
+            if (brightness > 80) return 'yellow';
+            if (brightness > 50) return 'orange';
+            return 'blue';
+          ]]]
+
+      - type: custom:mushroom-template-card
+        primary: "LED Attivi"
+        secondary: "{{ states('sensor.oraquadra2_led_attivi') }}"
+        icon: mdi:led-strip-variant
+        icon_color: |
+          [[[
+            const leds = parseInt(states['sensor.oraquadra2_led_attivi'].state);
+            if (leds > 200) return 'green';
+            if (leds > 100) return 'yellow';
+            return 'red';
+          ]]]
+
+      - type: custom:mushroom-template-card
+        primary: "Temperatura"
+        secondary: "{{ states('sensor.oraquadra2_temperatura_cpu') }}°C"
+        icon: mdi:thermometer
+        icon_color: |
+          [[[
+            const temp = parseFloat(states['sensor.oraquadra2_temperatura_cpu'].state);
+            if (temp > 60) return 'red';
+            if (temp > 45) return 'orange';
+            return 'green';
+          ]]]
+
+  # =============================================================================
+  # SENSORI SISTEMA
+  # =============================================================================
+  - type: custom:mushroom-template-card
+    primary: "Memoria Libera"
+    secondary: "{{ states('sensor.oraquadra2_memoria_libera') }} bytes"
+    icon: mdi:memory
+    icon_color: |
+      [[[
+        const memory = parseInt(states['sensor.oraquadra2_memoria_libera'].state);
+        if (memory > 100000) return 'green';
+        if (memory > 50000) return 'yellow';
+        return 'red';
+      ]]]
+
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-template-card
+        primary: "Preset Attivo"
+        secondary: "{{ states('sensor.oraquadra2_preset_nome') }}"
+        icon: mdi:palette-outline
+        icon_color: blue
+
+      - type: custom:mushroom-template-card
+        primary: "Versione Firmware"
+        secondary: "v{{ states('sensor.oraquadra2_versione_firmware') }}"
+        icon: mdi:information
+        icon_color: grey
+
+  # =============================================================================
+  # SWITCH E CONTROLLI
+  # =============================================================================
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-template-card
+        entity: switch.oraquadra2_lampeggio_secondi
+        primary: "Lampeggio Secondi"
+        secondary: "{{ 'Attivo' if is_state('switch.oraquadra2_lampeggio_secondi', 'on') else 'Disattivo' }}"
+        icon: mdi:flash
+        icon_color: |
+          [[[
+            if (states['switch.oraquadra2_lampeggio_secondi'].state === 'on')
+              return 'yellow';
+            return 'grey';
+          ]]]
+
+      - type: custom:mushroom-template-card
+        entity: switch.oraquadra2_luminosita_automatica
+        primary: "Luminosità Auto"
+        secondary: "{{ 'Attiva' if is_state('switch.oraquadra2_luminosita_automatica', 'on') else 'Disattiva' }}"
+        icon: mdi:brightness-auto
+        icon_color: |
+          [[[
+            if (states['switch.oraquadra2_luminosita_automatica'].state === 'on')
+              return 'green';
+            return 'grey';
+          ]]]
+
+  # =============================================================================
+  # PULSANTI AZIONE
+  # =============================================================================
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-template-card
+        entity: button.oraquadra2_pulsante_mode
+        primary: "Pulsante Mode"
+        secondary: "Cicla preset"
+        icon: mdi:refresh
+        icon_color: blue
+        tap_action:
+          action: call-service
+          service: button.press
+          target:
+            entity_id: button.oraquadra2_pulsante_mode
+
+      - type: custom:mushroom-template-card
+        entity: button.oraquadra2_pulsante_secondi
+        primary: "Pulsante Secondi"
+        secondary: "Toggle secondi"
+        icon: mdi:clock-outline
+        icon_color: green
+        tap_action:
+          action: call-service
+          service: button.press
+          target:
+            entity_id: button.oraquadra2_pulsante_secondi
+
+      - type: custom:mushroom-template-card
+        entity: button.oraquadra2_reboot
+        primary: "Reboot"
+        secondary: "Riavvia dispositivo"
+        icon: mdi:restart
+        icon_color: orange
+        tap_action:
+          action: call-service
+          service: button.press
+          target:
+            entity_id: button.oraquadra2_reboot
+
+  # =============================================================================
+  # GRAFICO LUMINOSITÀ
+  # =============================================================================
+  - type: custom:mushroom-template-card
+    primary: "Controllo Luminosità"
+    secondary: "{{ states('input_number.oraquadra2_luminosita') }}%"
+    icon: mdi:brightness-6
+    icon_color: |
+      [[[
+        const brightness = parseInt(states['input_number.oraquadra2_luminosita'].state);
+        if (brightness > 80) return 'yellow';
+        if (brightness > 50) return 'orange';
+        return 'blue';
+      ]]]
+    tap_action:
+      action: more-info
+      entity: input_number.oraquadra2_luminosita
+
+  # =============================================================================
+  # STATO ORARIO
+  # =============================================================================
+  - type: custom:mushroom-template-card
+    primary: "Orologio Attivo"
+    secondary: "{{ 'Sì' if is_state('binary_sensor.oraquadra2_orologio_attivo', 'on') else 'No' }}"
+    icon: mdi:clock-check
+    icon_color: |
+      [[[
+        if (states['binary_sensor.oraquadra2_orologio_attivo'].state === 'on')
+          return 'green';
+        return 'red';
+      ]]]
+
+  - type: custom:mushroom-template-card
+    primary: "Secondi Lampeggianti"
+    secondary: "{{ 'Sì' if is_state('binary_sensor.oraquadra2_secondi_lampeggianti', 'on') else 'No' }}"
+    icon: mdi:flash-circle
+    icon_color: |
+      [[[
+        if (states['binary_sensor.oraquadra2_secondi_lampeggianti'].state === 'on')
+          return 'yellow';
+        return 'grey';
+      ]]]
+
+  # =============================================================================
+  # FOOTER - INFORMAZIONI SISTEMA
+  # =============================================================================
+  - type: custom:mushroom-template-card
+    primary: "Sistema OraQuadra2"
+    secondary: "Uptime: {{ states('sensor.oraquadra2_uptime') }} | WiFi: {{ states('sensor.oraquadra2_wifi_signal') }}dBm"
+    icon: mdi:information-outline
+    icon_color: grey
