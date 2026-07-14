@@ -1,3 +1,48 @@
+# Oraquadra2+ — fork con MQTT / Home Assistant
+
+> **Versione corrente del fork: V1.3.1+MQTT** (base upstream V1.3.0) — vedi il
+> [CHANGELOG](CHANGELOG.md) completo.
+
+Questo fork di [SurvivalHacking/Oraquadra2](https://github.com/SurvivalHacking/Oraquadra2)
+aggiunge l'**integrazione MQTT + Home Assistant** all'orologio a parole, senza
+toccare le cartelle ufficiali (il branch `main` resta allineato all'upstream).
+
+## 🏠 Cosa aggiunge questo fork
+
+Tutto il lavoro vive nella cartella [`Oraquadra2_1_3_1_MQTT/`](Oraquadra2_1_3_1_MQTT/)
+(sketch V1.3.0 + modulo [`mqtt_oraquadra.h`](Oraquadra2_1_3_1_MQTT/mqtt_oraquadra.h)):
+
+* **Auto-discovery Home Assistant**: l'orologio appare da solo in HA come dispositivo
+  completo — luce (on/off, luminosità, colore RGB, **41 effetti** nella tendina nativa),
+  select modalità e colore, switch (lampeggio, testo scorrevole, overlay digitale,
+  Albero di Natale, modalità random), number (luminosità giorno/notte, velocità
+  scroll, intervallo random, ora/minuto test), text (testo scorrevole, fasce orarie),
+  pulsanti riavvio e test
+* **Sensori diagnostici**: temperatura CPU, memoria libera/usata, uptime, carico CPU
+  stimato, RSSI/qualità WiFi, IP, consumo e corrente stimati, fascia attiva
+* **Modalità random** (cambio effetto automatico a intervalli, persistente) e
+  **modalità test** (orario fittizio per 5 s)
+* **Affidabilità**: Last Will (online/offline reale in HA), riconnessione automatica,
+  anti-usura flash, `expire_after` sui sensori
+* **Credenziali fuori dal codice**: i valori reali del broker vanno in
+  `mqtt_secrets.h` (gitignorato) — copia
+  [`mqtt_secrets.h.example`](Oraquadra2_1_3_1_MQTT/mqtt_secrets.h.example) e compila
+  i campi; in alternativa si configura tutto dal pannello web dell'orologio
+* Esempi pronti: [`HA_automazioni_oraquadra.yaml`](HA_automazioni_oraquadra.yaml)
+  (automazioni HA), card e dashboard in `_mie_versioni_storiche/`
+
+## 🔧 Compilazione del fork
+
+Come l'upstream (core ESP32-C3, Partition Scheme **Minimal SPIFFS**) più la libreria
+**PubSubClient** (knolleary). Dettagli e note in
+[`Oraquadra2_1_3_1_MQTT/LEGGIMI_MQTT.md`](Oraquadra2_1_3_1_MQTT/LEGGIMI_MQTT.md).
+Per disabilitare l'MQTT: `#define ENABLE_MQTT false` in cima allo sketch.
+
+Tutto il merito del progetto originale è di **Davide Gatti / Survival Hacking** e
+dei contributori: di seguito il README ufficiale.
+
+---
+
 # Oraquadra2+
 Le parole in tempo
 
