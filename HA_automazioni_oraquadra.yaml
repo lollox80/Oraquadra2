@@ -1,0 +1,177 @@
+# ============================================================================
+#  OraQuadra2 + MQTT — Automazioni e script per Home Assistant
+# ============================================================================
+# Sfruttano le entità/comandi MQTT gia' esposti dal firmware. Non serve toccare
+# il firmware: si pubblica sul topic comandi `<base_topic>/command` in JSON.
+#
+# Base topic di default del firmware: "oraquadra2"  -> topic comandi: oraquadra2/command
+# Se hai cambiato il device/base topic, aggiorna la variabile qui sotto e i topic.
+#
+# Chiavi comando accettate dal firmware (JSON):
+#   {"state":"ON"|"OFF"}            accensione display
+#   {"brightness":0-100}           luminosita' %
+#   {"effect":"<nome preset>"}     effetto (es. "Albero di Natale", "Digitale", "Lento Casuale")
+#   {"preset":0-40}                effetto per numero
+#   {"scrollText":"...."}          testo scorrevole
+#   {"scrollEnabled":true|false}   attiva/disattiva scorrimento
+#   {"scrollSpeed":10-500}         velocita' scorrimento (ms)
+#   {"sleepModeEnabled":true|false} spegnimento notturno
+#
+# Come usarlo: incolla i blocchi nelle rispettive sezioni di configuration.yaml
+# (o in package). Riavvia HA / ricarica YAML.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# SCRIPT — Notifica sul testo scorrevole (KILLER FEATURE)
+# Mostra un messaggio scorrevole e dopo N secondi torna all'orologio.
+# Esempio chiamata:
+#   action: script.oraquadra_notifica
+#   data: { messaggio: "Corriere in arrivo", durata: 20 }
+# ----------------------------------------------------------------------------
+script:
+  oraquadra_notifica:
+    alias: "OraQuadra - Notifica scorrevole"
+    mode: queued          # accoda le notifiche invece di sovrapporle
+    max: 10
+    fields:
+      messaggio:
+        description: "Testo da mostrare sull'orologio"
+        example: "Corriere in arrivo"
+      durata:
+        description: "Secondi prima di tornare all'ora (default 20)"
+        example: 20
+    sequence:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: "{{ {'scrollText': messaggio, 'scrollEnabled': true} | to_json }}"
+      - delay:
+          seconds: "{{ durata | default(20) | int }}"
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"scrollEnabled": false}'
+
+automation:
+  # --------------------------------------------------------------------------
+  # Esempio: campanello -> notifica sull'orologio
+  # (sostituisci binary_sensor.campanello con il tuo sensore)
+  # --------------------------------------------------------------------------
+  - alias: "OraQuadra - Avviso campanello"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.campanello
+        to: "on"
+    action:
+      - service: script.oraquadra_notifica
+        data:
+          messaggio: "Qualcuno alla porta"
+          durata: 25
+
+  # --------------------------------------------------------------------------
+  # Albero di Natale automatico: la sera, dal 1 dicembre al 6 gennaio
+  # --------------------------------------------------------------------------
+  - alias: "OraQuadra - Albero di Natale (sera, periodo natalizio)"
+    trigger:
+      - platform: sun
+        event: sunset
+    condition:
+      - condition: template
+        value_template: >-
+          {{ (now().month == 12) or (now().month == 1 and now().day <= 6) }}
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"effect": "Albero di Natale"}'
+
+  - alias: "OraQuadra - Fine festa: torna all'ora (notte periodo natalizio)"
+    trigger:
+      - platform: time
+        at: "23:30:00"
+    condition:
+      - condition: template
+        value_template: >-
+          {{ (now().month == 12) or (now().month == 1 and now().day <= 6) }}
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"effect": "Lento Casuale"}'
+
+  # --------------------------------------------------------------------------
+  # Dimming al tramonto / luminosita' piena all'alba
+  # --------------------------------------------------------------------------
+  - alias: "OraQuadra - Luminosita' bassa al tramonto"
+    trigger:
+      - platform: sun
+        event: sunset
+        offset: "-00:15:00"
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"brightness": 30}'
+
+  - alias: "OraQuadra - Luminosita' piena all'alba"
+    trigger:
+      - platform: sun
+        event: sunrise
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"brightness": 80}'
+
+  # --------------------------------------------------------------------------
+  # Spegnimento notturno (Sleep Mode) e riaccensione al mattino
+  # --------------------------------------------------------------------------
+  - alias: "OraQuadra - Sleep di notte"
+    trigger:
+      - platform: time
+        at: "23:45:00"
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"sleepModeEnabled": true}'
+
+  - alias: "OraQuadra - Risveglio al mattino"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "oraquadra2/command"
+          payload: '{"sleepModeEnabled": false}'
+
+  # --------------------------------------------------------------------------
+  # Allerta dispositivo offline (usa il Last Will: payload "offline")
+  # --------------------------------------------------------------------------
+  - alias: "OraQuadra - Avviso offline"
+    trigger:
+      - platform: mqtt
+        topic: "oraquadra2/availability"
+        payload: "offline"
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "OraQuadra offline"
+          message: "L'orologio non risponde piu' (WiFi o alimentazione)."
+
+# ----------------------------------------------------------------------------
+# DASHBOARD (Lovelace) — esempio card compatta
+# Con l'effetto integrato come effect_list, la card luce mostra il menu effetti
+# in modo nativo. Adatta gli entity_id ai nomi reali del tuo dispositivo.
+# ----------------------------------------------------------------------------
+# type: entities
+# title: OraQuadra2
+# entities:
+#   - entity: light.oraquadra2          # luce: on/off, luminosita', colore, EFFETTO
+#   - entity: sensor.oraquadra2_time
+#   - entity: sensor.oraquadra2_consumo_stimato
+#   - entity: sensor.oraquadra2_fascia_attiva
+#   - entity: switch.oraquadra2_testo_scorrevole
+#   - entity: text.oraquadra2_testo_scorrevole
+#   - entity: number.oraquadra2_brightness

@@ -688,6 +688,8 @@ const char webpage[] PROGMEM = R"rawliteral(
         <header>
             <h1>OraQuadra2 Plus</h1>
             <p class="subtitle">Gestisci tutti gli effetti del orologio LED <span id="connDot" class="conn-dot" title="Stato connessione col dispositivo"></span></p>
+            <!-- Versione firmware: tenere allineata a firmwareVersion in mqtt_oraquadra.h -->
+            <p class="subtitle" style="font-size:0.8rem;opacity:0.6;margin-top:-6px;">Firmware 1.3.1-mqtt</p>
         </header>
         
         <div class="status-card">
@@ -857,6 +859,17 @@ const char webpage[] PROGMEM = R"rawliteral(
         </div>
 
         <div class="control-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <h2 style="margin: 0;">🌲 Albero di Natale</h2>
+                <label class="toggle">
+                <input type="checkbox" id="treeModeToggle" onchange="handleTreeModeChange()">
+                <span class="slider"></span>
+                </label>
+            </div>
+            <p style="margin:0;color:#888;font-size:0.85rem;">Mostra l'albero di Natale a schermo intero (niente orario).</p>
+        </div>
+
+        <div class="control-section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">📝 Testo Scorrevole <span class="save-hint">premi Salva per memorizzare</span></h2>
                 <label class="toggle">
@@ -937,6 +950,39 @@ const char webpage[] PROGMEM = R"rawliteral(
             </div>
             
             <button class="btn btn-primary" onclick="saveScrollOptions(); saveScrollText();">Salva impostazioni Testo Scorrevole</button>
+        </div>
+
+        <div class="control-section">
+            <h2>📡 Configurazione MQTT / Home Assistant</h2>
+            <div style="display:flex;flex-direction:column;gap:12px;max-width:480px;">
+                <div class="toggle-container">
+                    <label class="toggle">
+                        <input type="checkbox" id="mqttEnabled">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="slider-text">Abilita MQTT</span>
+                    <span id="mqttConnState" style="margin-left:10px;color:#888;font-size:0.9rem;">—</span>
+                </div>
+                <label style="color:#ccc;">Broker (IP)
+                    <input type="text" id="mqttServer" placeholder="192.168.1.100"
+                        style="width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;box-sizing:border-box;"></label>
+                <label style="color:#ccc;">Porta
+                    <input type="number" id="mqttPort" placeholder="1883"
+                        style="width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;box-sizing:border-box;"></label>
+                <label style="color:#ccc;">Utente
+                    <input type="text" id="mqttUser" placeholder="mqtt"
+                        style="width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;box-sizing:border-box;"></label>
+                <label style="color:#ccc;">Password <span style="color:#888;font-size:0.8rem;">(lascia "***" per non cambiarla)</span>
+                    <input type="password" id="mqttPassword" placeholder="***"
+                        style="width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;box-sizing:border-box;"></label>
+                <label style="color:#ccc;">Base topic
+                    <input type="text" id="mqttBaseTopic" placeholder="oraquadra2"
+                        style="width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;box-sizing:border-box;"></label>
+                <label style="color:#ccc;">Nome dispositivo
+                    <input type="text" id="mqttDeviceName" placeholder="OraQuadra2"
+                        style="width:100%;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;box-sizing:border-box;"></label>
+                <button class="btn btn-primary" onclick="saveMqttSettings()">Salva e riconnetti MQTT</button>
+            </div>
         </div>
 
     </div> <!-- chiusura .container: mancava, e il browser annidava notification e modale dentro il container
@@ -1034,6 +1080,7 @@ const char webpage[] PROGMEM = R"rawliteral(
             icon: "🌿",
             modes: [
                 { id: 20, name: "Natale 🎄" },
+                { id: 40, name: "Albero di Natale 🌲" },
                 { id: 21, name: "Neve ❄️" },
                 { id: 23, name: "Fuoco 🔥" },
                 { id: 25, name: "Camino 🔥" },
@@ -1504,6 +1551,8 @@ const char webpage[] PROGMEM = R"rawliteral(
                 document.getElementById('connDot').classList.add('online');
                 
                 document.getElementById('currentMode').textContent = data.modeName;
+                var treeTgl = document.getElementById('treeModeToggle');
+                if (treeTgl) treeTgl.checked = (data.mode == 40);
                 document.getElementById('currentColor').textContent = data.colorName;
                 document.getElementById('currentBlink').textContent = data.blink ? 'attivo' : 'disattivo';
                 document.getElementById('currentBrightness').textContent = data.brightness + '%';
@@ -1942,6 +1991,21 @@ function saveScrollText() {
     .catch(() => showNotification('Errore salvataggio testo', 'error'));
 }
 
+function handleTreeModeChange() {
+    const enabled = document.getElementById('treeModeToggle').checked;
+    fetch('/setTreeMode?enabled=' + (enabled ? '1' : '0'))
+        .then(r => r.text())
+        .then(() => {
+            if (enabled) {
+                showNotification('🌲 Albero di Natale ATTIVATO', 'success');
+            } else {
+                showNotification('Albero di Natale disattivato', 'info');
+            }
+            updateStatus();
+        })
+        .catch(e => showNotification('Errore attivazione albero', 'error'));
+}
+
 function handleScrollEnabledChange() {
     const enabled = document.getElementById('scrollEnabledToggle').checked;
     fetch('/setScrollEnabled?state=' + (enabled ? '1' : '0'))
@@ -2162,10 +2226,54 @@ function refreshStatus() {
 // Il toggle è gestito dall'attributo onchange (handleScrollEnabledChange):
 // un secondo listener qui causava una doppia richiesta a ogni cambio
 
+// ===== Pannello MQTT / Home Assistant =====
+function loadMqttSettings() {
+  fetch('/getMqttStatus').then(r => r.json()).then(d => {
+    document.getElementById('mqttEnabled').checked = !!d.enabled;
+    document.getElementById('mqttServer').value = d.server || '';
+    document.getElementById('mqttPort').value = d.port || 1883;
+    document.getElementById('mqttUser').value = d.user || '';
+    document.getElementById('mqttPassword').value = '***';
+    document.getElementById('mqttBaseTopic').value = d.baseTopic || '';
+    document.getElementById('mqttDeviceName').value = d.deviceName || '';
+    var s = document.getElementById('mqttConnState');
+    if (s) {
+      if (d.connected) { s.textContent = '● connesso'; s.style.color = '#4caf50'; }
+      else {
+        var rcMap = {'-4':'timeout','-3':'connessione persa','-2':'broker irraggiungibile',
+                     '-1':'disconnesso','1':'protocollo errato','2':'client id rifiutato',
+                     '3':'broker non disponibile','4':'utente/password errati','5':'non autorizzato'};
+        var code = (typeof d.state !== 'undefined') ? d.state : '';
+        var why = rcMap[String(code)] ? (': ' + rcMap[String(code)]) : '';
+        s.textContent = '○ non connesso' + (code !== '' ? ' (rc=' + code + why + ')' : '');
+        s.style.color = '#e57373';
+      }
+    }
+  }).catch(() => {});
+}
+
+function saveMqttSettings() {
+  const p = new URLSearchParams();
+  p.append('enabled', document.getElementById('mqttEnabled').checked ? '1' : '0');
+  p.append('server', document.getElementById('mqttServer').value.trim());
+  p.append('port', document.getElementById('mqttPort').value || '1883');
+  p.append('user', document.getElementById('mqttUser').value);
+  p.append('password', document.getElementById('mqttPassword').value || '***');
+  p.append('baseTopic', document.getElementById('mqttBaseTopic').value.trim() || 'oraquadra2');
+  p.append('deviceName', document.getElementById('mqttDeviceName').value.trim() || 'OraQuadra2');
+  fetch('/setMqttSettings', { method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: p.toString() })
+    .then(r => r.text()).then(t => {
+      alert(t === 'OK' ? 'Impostazioni MQTT salvate. Riconnessione in corso…' : ('Errore: ' + t));
+      setTimeout(loadMqttSettings, 1500);
+    }).catch(() => alert('Errore di comunicazione con l\'orologio'));
+}
+
 // al caricamento della pagina
 document.addEventListener('DOMContentLoaded', (event) => {
   // assicurati che i controlli del pannello testo abbiano la classe .scroll-control
   refreshStatus();
+  loadMqttSettings();
 });
 
 

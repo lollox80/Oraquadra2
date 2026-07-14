@@ -1,4 +1,4 @@
-// OraQuadra V1.3.0  -  By Davide Gatti SURVIVAL HACKING  www.survivalhacking.it
+// OraQuadra V1.3.1+MQTT (base upstream V1.3.0)  -  By Davide Gatti SURVIVAL HACKING  www.survivalhacking.it
 // interfaccia web e alcuni effetti aggiunti da Marco Prunca
 // Sketch completamente riscritto e ottimizzato per famiglia esp32 by Paolo Sambi
 // Nuovo quadrante by Luca Beltramio
@@ -97,6 +97,26 @@
 // Le categorie della pagina web sono state riorganizzate in Effetti Speciali / Giochi / Ambient
 // Aggiunto effetto LAVA LAMP (preset 39) con blob metaball che si fondono e separano
 //
+// V1.3.1+MQTT - 14/07/2026 - By Lollo (variante MQTT/Home Assistant, base upstream V1.3.0)
+// CORREZIONI MQTT / HOME ASSISTANT:
+// - Select colore: aggiunta l'opzione "Personalizzato" alle options del discovery.
+//   Quando il colore RGB non era uno dei 6 predefiniti, HA rifiutava lo stato ogni 30 s
+//   con "Invalid option for select ...: 'Personalizzato'" riempiendo il log di errori
+// - Luce HA: aggiunto brightness_scale=100. Senza, HA assumeva scala 0-255 mentre lo stato
+//   pubblica 0-100: slider a ~39% con luminosita' piena e comandi slider interpretati male
+// - Luce HA: rimosso "retain":true dal config. HA pubblicava i COMANDI retained su /command
+//   e a ogni riconnessione il firmware ri-riceveva l'ultimo comando vecchio (stati fantasma)
+// - Modalita' random: le impostazioni (on/off e intervallo) ora vengono RILETTE al boot.
+//   Prima erano salvate in EEPROM ma mai ricaricate: si perdevano a ogni riavvio
+// - Intervallo random: salvato in EEPROM in SECONDI (2 byte). Il vecchio formato salvava i
+//   millisecondi troncati a 16 bit: qualunque valore sopra i 65 s si corrompeva
+// - Sensore Blink: rimosso device_class "enum" (richiede options e stato testuale,
+//   ma il valore pubblicato e' 0/1 numerico): config fragile per HA
+// - Corretta la compilazione con ENABLE_MQTT false: i gestori web della modalita' random
+//   erano dentro #if ENABLE_MQTT ma setupMqttWebRoutes() li registra sempre
+// - Buffer discovery select colore 1024 -> 1536 byte (era al limite con la nuova opzione)
+// - Commenti sistemati: preset 0-40 (non 0-19), area EEPROM estesa reale 360-464
+//
 // Mappatura matrice
 // S-015 O-014 N-013 O-012 U-011 L-010 E-009 Y-008 O-007 R-006 E-005 X-004 Z-003 E-002 R-001 O-000
 // V-016 E-017 N-018 T-019 I-020 T-021 R-022 E-023 D-024 I-025 C-026 I-027 O-028 T-029 T-030 O-031
@@ -137,7 +157,7 @@
 #define BUTTON_LOGIC_INVERTED 1
 
 // Pin e configurazione LED ESP32C3
-#define LED_PIN      5     // Pin per matrice LED
+#define LED_PIN      5     // Pin per matrice LED (hardware di Lollo: DIN su GPIO2, non 5 come l'upstream)
 #define BUTTON_MODE  6     // Pulsante modi
 #define BUTTON_SEC   7     // Pulsante lampeggio secondo
 
@@ -185,6 +205,7 @@
 #define MODE_BUBBLES 30   // Bolle che salgono e scoppiano sulle lettere
 #define MODE_PONG 31      // Pong autonomo, la pallina rivela le lettere
 #define MODE_LAVA 32      // Lava lamp con blob metaball che si fondono
+#define MODE_TREE 33      // Albero di Natale (palline + stella) - effetto utente
 
 // Strutture e costanti per effetto Matrix
 #define MATRIX_BASE_SPEED   0.15f
@@ -280,8 +301,8 @@
 #define EEPROM_MODE_SETTINGS_START 250
 #define EEPROM_MODE_SETTINGS_SIZE 5         // Byte per ogni modalità
 #define EEPROM_MODE_MARKER 0xAA             // Marker per indicare che la modalità è stata salvata
-#define NUM_MODES 40                        // Numero totale di preset (0-39)
-#define EEPROM_MODE_SETTINGS_EXT 360        // Area estesa preset 20-39 (360-459): l'area storica finisce a 349 e 350-356 è già usata dallo scroll
+#define NUM_MODES 41                        // Numero totale di preset (0-40)
+#define EEPROM_MODE_SETTINGS_EXT 360        // Area estesa preset 20-40 (360-464): l'area storica finisce a 349 e 350-356 è già usata dallo scroll. NB: il preset 40 arriva a 464, la config MQTT parte a 512 -> nessuna collisione
 #define EEPROM_CONFIGURED_MARKER 0x55
 #define EEPROM_PRESET_ADDR 1
 #define EEPROM_BLINK_ADDR 2
@@ -390,12 +411,18 @@ void initPongEffect();
 void updatePongEffect();
 void initLavaEffect();
 void updateLavaEffect();
+void initNataleEffect();
+bool dentroAlbero(uint8_t x, uint8_t y);
+void disegnaAlbero();
+void updateNataleEffect();
+uint8_t estimatedCpuUsage();   // BLOCCO 3 - stima carico CPU basata sul rate del loop()
 uint16_t xyToLED(uint8_t x, uint8_t y);
 void showCurrentTime();
 void displayWord(const uint8_t* word, CRGB color);
 void showMinutes(uint8_t minutes, CRGB color);
 void showSeconds(uint8_t seconds, CRGB color);
 void handleSetScrollEnabled(); // handler per settaggio scroll ON/OFF via web
+void handleSetTreeMode();      // BLOCCO 2 - handler switch Albero di Natale via web
 
 // Struttura per tenere traccia dello stato delle gocce nel Matrix2
 struct Matrix2State {
@@ -544,6 +571,36 @@ const CRGB christmasColors[4] = {
     CRGB::White,            // Bianco
     CRGB(255, 215, 0)       // Oro
 };
+// Variabili per effetto NATALE (Albero di Natale - MODE_TREE)
+uint32_t lastNataleUpdate = 0;
+#define NATALE_UPDATE_INTERVAL 50  // Aggiorna ogni 50ms per effetti più fluidi
+#define NUM_PALLINE 12  // Numero di palline colorate sull'albero (aumentato)
+struct Pallina {
+    float x;        // Posizione X (float per movimento fluido)
+    float y;        // Posizione Y (float per movimento fluido)
+    float vx;       // Velocità X
+    float vy;       // Velocità Y
+    CRGB color;     // Colore della pallina
+    uint8_t intensity;  // Intensità corrente (per effetto fade tipo Tron2)
+    int8_t intensityDir;  // Direzione cambio intensità (-1 o 1)
+    uint32_t lastUpdate;  // Ultimo aggiornamento intensità
+};
+Pallina palline[NUM_PALLINE];
+bool nataleInitialized = false;
+uint8_t stellaBrightness = 255;  // Luminosità stella (per effetto lampeggiante veloce)
+int8_t stellaDir = -20;  // Direzione cambio luminosità stella (più veloce)
+uint32_t lastStellaToggle = 0;  // Ultimo toggle stella
+bool stellaAccesa = true;  // Stato stella (accesa/spenta)
+
+// ═══ BLOCCO 3 - Stima carico CPU basata sul rate del loop() ═══
+// NOTA: è una STIMA. L'ESP32 non espone un vero carico CPU; deduciamo
+// l'occupazione confrontando i giri/secondo correnti con il massimo osservato.
+volatile uint32_t cpuLoopCounter = 0;     // Contatore giri loop() nel secondo corrente
+uint32_t cpuLastSampleMs = 0;             // Ultimo campionamento (ms)
+uint32_t cpuLoopsPerSec = 0;              // Giri/sec misurati nell'ultimo secondo
+uint32_t cpuMaxLoopsPerSec = 1;           // Massimo giri/sec osservato (riferimento dinamico, mai 0)
+uint8_t  cpuUsagePercent = 0;             // Ultima stima calcolata (0-100)
+
 // Variabili per effetto SNOWFALL
 struct Snowflake {
     float x;              // Posizione X (con decimali per movimento fluido)
@@ -1720,6 +1777,7 @@ void setupWebServer() {
     server.on("/setScrollTextualDateTime", HTTP_POST, handleSetScrollTextualDateTime);
     server.on("/setScrollSpeed", HTTP_POST, handleSetScrollSpeed); // Nuovo endpoint per velocità
     server.on("/setScrollEnabled", HTTP_GET, handleSetScrollEnabled);
+    server.on("/setTreeMode", HTTP_GET, handleSetTreeMode);  // BLOCCO 2 - Albero di Natale
     server.on("/setScrollTextColor", HTTP_POST, handleSetScrollTextColor);
     server.on("/setScrollTextRainbow", HTTP_POST, handleSetScrollTextRainbow);
     server.on("/power", HTTP_POST, handlePower);
@@ -1797,6 +1855,7 @@ void handleStatus() {
         case 37: modeName = "Effetto Bolle"; break;
         case 38: modeName = "Effetto Pong"; break;
         case 39: modeName = "Lava Lamp"; break;
+        case 40: modeName = "Albero di Natale"; break;
         default: modeName = "Sconosciuta"; break;
     }
     
@@ -1878,7 +1937,7 @@ void handleStatus() {
 void handleSetMode() {
     if (server.hasArg("mode")) {
         uint8_t newMode = server.arg("mode").toInt();
-        if (newMode < 40) {
+        if (newMode < NUM_MODES) {  // include il preset 40 (Albero di Natale)
             currentPreset = newMode;
             
             applyPreset(currentPreset);
@@ -1891,6 +1950,23 @@ void handleSetMode() {
         }
     }
     server.send(400, "text/plain", "Invalid mode");
+}
+
+// BLOCCO 2 - Switch dedicato Albero di Natale (web)
+// /setTreeMode?enabled=1 -> applyPreset(40) ; /setTreeMode?enabled=0 -> applyPreset(0)
+void handleSetTreeMode() {
+    if (server.hasArg("enabled")) {
+        String val = server.arg("enabled");
+        val.toLowerCase();
+        bool enable = (val == "1" || val == "true");
+        currentPreset = enable ? 40 : 0;
+        applyPreset(currentPreset);
+        EEPROM.write(EEPROM_PRESET_ADDR, currentPreset);
+        EEPROM.commit();
+        server.send(200, "text/plain", "OK");
+        return;
+    }
+    server.send(400, "text/plain", "Invalid parameters");
 }
 
 void handleSetBlink() {
@@ -5216,6 +5292,309 @@ float lavaX[LAVA_BLOBS], lavaY[LAVA_BLOBS];
 float lavaVX[LAVA_BLOBS], lavaVY[LAVA_BLOBS];
 float lavaR[LAVA_BLOBS];
 
+// ═══ BLOCCO 3 - Stima carico CPU (da chiamare in loop() tramite cpuUsageTick) ═══
+// Da invocare ad ogni giro di loop(): incrementa il contatore e, una volta al
+// secondo, calcola giri/sec e aggiorna la stima di carico.
+void cpuUsageTick() {
+    cpuLoopCounter++;
+    uint32_t now = millis();
+    if (now - cpuLastSampleMs >= 1000) {
+        cpuLoopsPerSec = cpuLoopCounter;
+        cpuLoopCounter = 0;
+        cpuLastSampleMs = now;
+        // Aggiorna il massimo osservato (riferimento dinamico di "CPU scarica")
+        if (cpuLoopsPerSec > cpuMaxLoopsPerSec) cpuMaxLoopsPerSec = cpuLoopsPerSec;
+        // Carico stimato: più i giri/sec calano sotto il massimo, più è alto il carico
+        if (cpuMaxLoopsPerSec > 0) {
+            int32_t usage = 100 - (int32_t)((uint64_t)cpuLoopsPerSec * 100UL / cpuMaxLoopsPerSec);
+            if (usage < 0) usage = 0;
+            if (usage > 100) usage = 100;
+            cpuUsagePercent = (uint8_t)usage;
+        } else {
+            cpuUsagePercent = 0;
+        }
+    }
+}
+
+// Restituisce l'ultima stima di carico CPU (0-100). È una STIMA, non un valore reale.
+uint8_t estimatedCpuUsage() {
+    return cpuUsagePercent;
+}
+
+// ═══ Funzione per inizializzare effetto Natale - V1.2.6 ═══
+void initNataleEffect() {
+    nataleInitialized = true;
+    lastNataleUpdate = 0;
+    uint32_t currentMillis = millis();
+
+    // Inizializza le palline con posizioni casuali sull'albero e colori diversi
+    CRGB coloriPalline[] = {
+        CRGB::Red,      // Rosso
+        CRGB::Blue,     // Blu
+        CRGB::Yellow,   // Giallo
+        CRGB(255,165,0), // Arancione
+        CRGB(255,192,203), // Rosa
+        CRGB::Cyan,     // Ciano
+        CRGB::Magenta,  // Magenta
+        CRGB::White,    // Bianco
+        CRGB(255,20,147), // Rosa shocking
+        CRGB(0,255,127),  // Verde primavera
+        CRGB(255,215,0),  // Oro
+        CRGB(138,43,226)  // Viola blu
+    };
+
+    // Posizioni possibili per le palline (sull'albero, evitando il tronco)
+    // L'albero va da y=2 a y=13, il tronco è in basso
+    uint8_t posizioniX[] = {4, 5, 6, 7, 8, 9, 10, 11, 12};
+    uint8_t posizioniY[] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+
+    for (uint8_t i = 0; i < NUM_PALLINE; i++) {
+        palline[i].x = (float)posizioniX[random(sizeof(posizioniX) / sizeof(posizioniX[0]))];
+        palline[i].y = (float)posizioniY[random(sizeof(posizioniY) / sizeof(posizioniY[0]))];
+        palline[i].color = coloriPalline[i % (sizeof(coloriPalline) / sizeof(coloriPalline[0]))];
+        palline[i].intensity = random(100, 255);  // Intensità iniziale casuale
+        palline[i].intensityDir = (random(2) == 0) ? 1 : -1;  // Direzione casuale
+        palline[i].lastUpdate = currentMillis;
+        // Velocità casuale per movimento fluido (lentamente lungo l'albero)
+        // Assicurati che le velocità non siano mai zero
+        int8_t vxRand = random(10) - 5;
+        int8_t vyRand = random(10) - 5;
+        // Se la velocità è zero, assegna un valore minimo
+        if (vxRand == 0) vxRand = (random(2) == 0) ? -1 : 1;
+        if (vyRand == 0) vyRand = (random(2) == 0) ? -1 : 1;
+        palline[i].vx = vxRand * 0.02;  // Velocità X molto lenta (mai zero)
+        palline[i].vy = vyRand * 0.02;  // Velocità Y molto lenta (mai zero)
+    }
+
+    // Inizializza stella
+    stellaBrightness = 255;
+    stellaDir = -20;
+    lastStellaToggle = currentMillis;
+    stellaAccesa = true;
+}
+
+// ═══ Funzione per disegnare l'albero di Natale migliorato - V1.2.7 ═══
+// Funzione helper per verificare se un punto è dentro l'albero
+bool dentroAlbero(uint8_t x, uint8_t y) {
+    if (y < 2 || y > 13) return false;  // Fuori dall'albero verticalmente
+
+    uint8_t centroX = 7;  // Centro dell'albero
+    uint8_t larghezza;
+
+    // Calcola la larghezza dello strato in base alla Y
+    if (y == 2) larghezza = 2;
+    else if (y == 3) larghezza = 3;
+    else if (y == 4) larghezza = 4;
+    else if (y == 5) larghezza = 5;
+    else if (y == 6) larghezza = 6;
+    else if (y == 7) larghezza = 7;
+    else if (y == 8) larghezza = 8;
+    else if (y == 9) larghezza = 9;
+    else if (y == 10) larghezza = 10;
+    else if (y == 11) larghezza = 11;
+    else if (y == 12) larghezza = 12;
+    else if (y == 13) larghezza = 13;
+    else return false;
+
+    // Verifica se x è dentro la larghezza dello strato
+    int8_t minX = centroX - larghezza/2;
+    int8_t maxX = centroX + larghezza/2;
+    return (x >= minX && x <= maxX && x < MATRIX_WIDTH);
+}
+
+void disegnaAlbero() {
+    // Disegna l'albero verde a strati triangolari con forma più precisa
+    // Usa una funzione per calcolare la larghezza di ogni strato
+    uint8_t centroX = 7;  // Centro dell'albero
+
+    // Disegna tutti gli strati dell'albero
+    for (uint8_t y = 2; y <= 13; y++) {
+        uint8_t larghezza;
+        if (y == 2) larghezza = 2;
+        else if (y == 3) larghezza = 3;
+        else if (y == 4) larghezza = 4;
+        else if (y == 5) larghezza = 5;
+        else if (y == 6) larghezza = 6;
+        else if (y == 7) larghezza = 7;
+        else if (y == 8) larghezza = 8;
+        else if (y == 9) larghezza = 9;
+        else if (y == 10) larghezza = 10;
+        else if (y == 11) larghezza = 11;
+        else if (y == 12) larghezza = 12;
+        else if (y == 13) larghezza = 13;
+        else continue;
+
+        // Colore verde con gradazione (più scuro in alto, più chiaro in basso)
+        uint8_t verde = 120 + (y * 5);  // Da 130 a 185
+        if (verde > 255) verde = 255;
+
+        for (uint8_t x = centroX - larghezza/2; x <= centroX + larghezza/2; x++) {
+            if (x < MATRIX_WIDTH) {
+                uint16_t pos = xyToLED(x, y);
+                if (pos < NUM_LEDS) {
+                    leds[pos] = CRGB(0, verde, 0);
+                }
+            }
+        }
+    }
+
+    // ═══ Aggiungi LED extra nella riga 12 (x=1 e x=15) - V1.2.7 ═══
+    uint8_t verdeRiga12 = 120 + (12 * 5);  // Colore verde per riga 12
+    if (verdeRiga12 > 255) verdeRiga12 = 255;
+    uint16_t pos1 = xyToLED(1, 12);
+    uint16_t pos15 = xyToLED(15, 12);
+    if (pos1 < NUM_LEDS) leds[pos1] = CRGB(0, verdeRiga12, 0);
+    if (pos15 < NUM_LEDS) leds[pos15] = CRGB(0, verdeRiga12, 0);
+
+    // Tronco marrone in basso
+    for (uint8_t x = 6; x <= 9; x++) {
+        uint16_t pos = xyToLED(x, 14);
+        if (pos < NUM_LEDS) leds[pos] = CRGB(101, 67, 33);  // Marrone
+    }
+    for (uint8_t x = 6; x <= 9; x++) {
+        uint16_t pos = xyToLED(x, 15);
+        if (pos < NUM_LEDS) leds[pos] = CRGB(101, 67, 33);
+    }
+
+    // ═══ Stella che lampeggia velocemente - V1.2.7 ═══
+    if (stellaAccesa) {
+        CRGB stellaColor = CRGB::Yellow;
+        // Stella modificata:
+        // Prima riga (y=0): centro
+        uint16_t stellaPos1 = xyToLED(7, 0);
+        uint16_t stellaPos2 = xyToLED(8, 0);
+        // Seconda riga (y=1): centro e lati (rimosso x=9)
+        uint16_t stellaPos3 = xyToLED(7, 1);
+        uint16_t stellaPos4 = xyToLED(8, 1);
+        uint16_t stellaPos5 = xyToLED(6, 1);
+        // Terza riga (y=3): aggiunto x=8
+        uint16_t stellaPos6 = xyToLED(8, 3);
+
+        if (stellaPos1 < NUM_LEDS) leds[stellaPos1] = stellaColor;
+        if (stellaPos2 < NUM_LEDS) leds[stellaPos2] = stellaColor;
+        if (stellaPos3 < NUM_LEDS) leds[stellaPos3] = stellaColor;
+        if (stellaPos4 < NUM_LEDS) leds[stellaPos4] = stellaColor;
+        if (stellaPos5 < NUM_LEDS) leds[stellaPos5] = stellaColor;
+        if (stellaPos6 < NUM_LEDS) leds[stellaPos6] = stellaColor;
+    }
+}
+
+// ═══ Funzione per aggiornare effetto Natale - V1.2.6 ═══
+void updateNataleEffect() {
+    uint32_t currentMillis = millis();
+
+    // Aggiornamento periodico
+    if (currentMillis - lastNataleUpdate < NATALE_UPDATE_INTERVAL) return;
+    lastNataleUpdate = currentMillis;
+
+    // Inizializza se necessario
+    if (!nataleInitialized) {
+        initNataleEffect();
+    }
+
+    // Cancella tutto
+    FastLED.clear();
+
+    // ═══ Aggiorna stella (lampeggio veloce on/off ogni 100ms) - V1.2.7 ═══
+    if (currentMillis - lastStellaToggle >= 100) {
+        stellaAccesa = !stellaAccesa;
+        lastStellaToggle = currentMillis;
+    }
+
+    // Disegna l'albero verde
+    disegnaAlbero();
+
+    // ═══ Aggiorna e disegna le palline con movimento e effetto fade - V1.2.7 ═══
+    for (uint8_t i = 0; i < NUM_PALLINE; i++) {
+        // Aggiorna posizione delle palline (movimento fluido)
+        palline[i].x += palline[i].vx;
+        palline[i].y += palline[i].vy;
+
+        // Mantieni le palline dentro l'albero (rimbalzo ai bordi)
+        uint8_t centroX = 7;
+        uint8_t yInt = (uint8_t)palline[i].y;
+        uint8_t xInt = (uint8_t)palline[i].x;
+
+        // Calcola la larghezza dello strato corrente
+        uint8_t larghezza = 0;
+        if (yInt >= 2 && yInt <= 13) {
+            if (yInt == 2) larghezza = 2;
+            else if (yInt == 3) larghezza = 3;
+            else if (yInt == 4) larghezza = 4;
+            else if (yInt == 5) larghezza = 5;
+            else if (yInt == 6) larghezza = 6;
+            else if (yInt == 7) larghezza = 7;
+            else if (yInt == 8) larghezza = 8;
+            else if (yInt == 9) larghezza = 9;
+            else if (yInt == 10) larghezza = 10;
+            else if (yInt == 11) larghezza = 11;
+            else if (yInt == 12) larghezza = 12;
+            else if (yInt == 13) larghezza = 13;
+        }
+
+        // Controlla se è fuori dai bordi dell'albero e rimbalza
+        if (yInt < 2) {
+            palline[i].y = 2.0;
+            palline[i].vy = -palline[i].vy;  // Rimbalza
+        } else if (yInt > 13) {
+            palline[i].y = 13.0;
+            palline[i].vy = -palline[i].vy;  // Rimbalza
+        }
+
+        if (larghezza > 0) {
+            int8_t minX = centroX - larghezza/2;
+            int8_t maxX = centroX + larghezza/2;
+            if (xInt < minX) {
+                palline[i].x = (float)minX;
+                palline[i].vx = -palline[i].vx;  // Rimbalza
+            } else if (xInt > maxX) {
+                palline[i].x = (float)maxX;
+                palline[i].vx = -palline[i].vx;  // Rimbalza
+            }
+        }
+
+        // Aggiorna intensità con effetto fade (tipo Tron2)
+        palline[i].intensity += palline[i].intensityDir * 4;
+
+        // Inverti direzione ai limiti
+        if (palline[i].intensity >= 255) {
+            palline[i].intensity = 255;
+            palline[i].intensityDir = -1;
+        } else if (palline[i].intensity <= 80) {
+            palline[i].intensity = 80;
+            palline[i].intensityDir = 1;
+        }
+
+        // Disegna la pallina con intensità variabile solo se è dentro l'albero
+        yInt = (uint8_t)palline[i].y;
+        xInt = (uint8_t)palline[i].x;
+        if (dentroAlbero(xInt, yInt)) {
+            uint16_t pos = xyToLED(xInt, yInt);
+            if (pos < NUM_LEDS) {
+                CRGB colorePallina = palline[i].color;
+                colorePallina.nscale8(palline[i].intensity);  // Applica intensità variabile
+                leds[pos] = colorePallina;
+            }
+        } else {
+            // Se è fuori dall'albero dopo il rimbalzo, riposiziona dentro l'albero
+            // e reinizializza le velocità (assicurandosi che non siano zero)
+            uint8_t posizioniX[] = {4, 5, 6, 7, 8, 9, 10, 11, 12};
+            uint8_t posizioniY[] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+            palline[i].x = (float)posizioniX[random(sizeof(posizioniX) / sizeof(posizioniX[0]))];
+            palline[i].y = (float)posizioniY[random(sizeof(posizioniY) / sizeof(posizioniY[0]))];
+            // Reinizializza velocità (mai zero)
+            int8_t vxRand = random(10) - 5;
+            int8_t vyRand = random(10) - 5;
+            if (vxRand == 0) vxRand = (random(2) == 0) ? -1 : 1;
+            if (vyRand == 0) vyRand = (random(2) == 0) ? -1 : 1;
+            palline[i].vx = vxRand * 0.02;
+            palline[i].vy = vyRand * 0.02;
+        }
+    }
+
+    FastLED.show();
+}
+
 void initLavaEffect() {
     lastFxUpdate = 0;
     fxLoadTargets();
@@ -5280,6 +5659,14 @@ void updateLavaEffect() {
 
 void setup() {
    Serial.begin(115200);
+   // Con "USB CDC On Boot: Enabled" su ESP32-C3, le Serial.print() si bloccano
+   // quando l'orologio e' alimentato senza PC (buffer USB pieno, nessuno lo svuota)
+   // -> il firmware si pianta e la matrice resta spenta finche' non apri il monitor
+   // seriale. Timeout TX a 0 = scritture non bloccanti: in assenza di host i dati
+   // vengono scartati invece di bloccare. (No-op se il CDC non e' attivo.)
+#if ARDUINO_USB_CDC_ON_BOOT
+   Serial.setTxTimeoutMs(0);
+#endif
    Serial.println("START");
    EEPROM.begin(EEPROM_SIZE);
 
@@ -5952,6 +6339,9 @@ void updateCurrentTimeFromTZ() {
 
 void loop() {
 
+    // BLOCCO 3 - Stima carico CPU: conta i giri del loop()
+    cpuUsageTick();
+
 // Aggiorna ezTime (NTP, DST) e le variabili usate dal display
     events();                 // ezTime
     updateCurrentTimeFromTZ();  // allinea currentHour/Minute/Second a myTZ
@@ -6224,6 +6614,9 @@ if (!displayOff) {
     }
     else if(currentMode == MODE_LAVA) {
         updateLavaEffect();
+    }
+    else if(currentMode == MODE_TREE) {
+        updateNataleEffect();
     }
     else {
         updateDisplay();
@@ -6573,6 +6966,11 @@ void applyPreset(uint8_t preset) {
        case 37: currentMode = MODE_BUBBLES;   manualModeSelected = false; initBubblesEffect();   break;
        case 38: currentMode = MODE_PONG;      manualModeSelected = false; initPongEffect();      break;
        case 39: currentMode = MODE_LAVA;      manualModeSelected = false; initLavaEffect();      break;
+       case 40:
+           currentMode = MODE_TREE;
+           manualModeSelected = true;   // l'albero NON mostra l'orario (niente overlay)
+           initNataleEffect();
+           break;
 
        default:
            currentMode = MODE_SLOW;
