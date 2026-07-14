@@ -14,6 +14,16 @@ Versione **1.3.1-mqtt** (base upstream V1.3.0). Cartella rinominata da
 Compilare con core ESP32-C3, Partition Scheme **Minimal SPIFFS**,
 librerie **PubSubClient** + **ArduinoJson**.
 
+### Security — 2026-07-14 — credenziali broker fuori dal codice pubblico
+
+- Le credenziali MQTT reali sono state spostate in `mqtt_secrets.h`
+  (**gitignorato**, incluso via `__has_include` se presente); nel codice
+  pubblicato restano solo placeholder (`192.168.1.100` / `CHANGE_ME`).
+  Template committato: `mqtt_secrets.h.example`.
+- NOTA: le credenziali precedenti restano nella **storia git** già pubblicata;
+  la password del broker va considerata compromessa e va **cambiata** sul
+  broker (poi aggiornata in `mqtt_secrets.h` o dal pannello web).
+
 ### Fixed — 2026-07-14 — audit MQTT/Home Assistant
 
 Tutte in `Oraquadra2_1_3_1_MQTT/mqtt_oraquadra.h` (salvo indicazione):

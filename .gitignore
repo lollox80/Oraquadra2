@@ -30,3 +30,6 @@ _archivio_versioni_precedenti/
 
 # Impostazioni Claude locali (settings.json e i comandi si committano, il local no)
 .claude/settings.local.json
+
+# Credenziali MQTT locali (mai committare)
+mqtt_secrets.h

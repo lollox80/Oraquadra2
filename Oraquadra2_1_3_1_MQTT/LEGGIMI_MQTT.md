@@ -60,10 +60,12 @@ Tre interventi in `mqtt_oraquadra.h`, tutti localizzati:
 
 ## Cosa fa
 
-- **Configurazione broker**: di default usa i tuoi parametri reali
-  (`192.168.1.100`, utente `mqtt`). Si cambiano in cima a `mqtt_oraquadra.h`
-  (`MQTT_*_DEFAULT`) oppure via le route web `/setMqttSettings` e `/getMqttStatus`
-  (gia' registrate; vengono anche salvate in EEPROM).
+- **Configurazione broker**: i valori reali (IP, utente, password) stanno in
+  `mqtt_secrets.h` (**gitignorato**, resta solo sul PC): copiare
+  `mqtt_secrets.h.example` in `mqtt_secrets.h` e compilare i campi. Senza quel
+  file valgono i placeholder in cima a `mqtt_oraquadra.h`; in ogni caso il
+  broker si configura via le route web `/setMqttSettings` e `/getMqttStatus`
+  (gia' registrate; i valori vengono salvati in EEPROM).
 - **Home Assistant auto-discovery**: luce (on/off + luminosita + colore RGB),
   selettore effetto con **tutti i 40 preset** della V1.3.0 (inclusi i nuovi
   Arkanoid..Lava Lamp), sensori (ora, WiFi/RSSI, IP, stato), switch lampeggio,

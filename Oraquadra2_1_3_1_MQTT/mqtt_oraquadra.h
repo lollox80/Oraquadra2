@@ -19,13 +19,37 @@
 #define ENABLE_MQTT true
 #endif
 
-// ---- Valori di default (usati al primo avvio / reset) ----
-#define MQTT_SERVER_DEFAULT     "192.168.1.100"
+// ---- Valori di default (usati al primo avvio / reset EEPROM) ----
+// SICUREZZA: i valori REALI (IP broker, utente, password) vanno nel file
+// "mqtt_secrets.h" in questa cartella, che e' GITIGNORATO e non finisce su
+// GitHub. Copiare "mqtt_secrets.h.example" in "mqtt_secrets.h" e compilare i
+// campi. Senza quel file valgono i placeholder qui sotto: l'orologio parte
+// comunque e il broker si configura dal pannello web (/setMqttSettings) con
+// salvataggio in EEPROM (i default servono solo a EEPROM vergine).
+#if defined(__has_include)
+#  if __has_include("mqtt_secrets.h")
+#    include "mqtt_secrets.h"
+#  endif
+#endif
+
+#ifndef MQTT_SERVER_DEFAULT
+#define MQTT_SERVER_DEFAULT     "192.168.1.100"   // placeholder: IP del tuo broker
+#endif
+#ifndef MQTT_PORT_DEFAULT
 #define MQTT_PORT_DEFAULT       1883
-#define MQTT_USER_DEFAULT       "mqtt"
-#define MQTT_PASSWORD_DEFAULT   "CHANGE_ME"
+#endif
+#ifndef MQTT_USER_DEFAULT
+#define MQTT_USER_DEFAULT       "mqtt"            // placeholder: utente broker
+#endif
+#ifndef MQTT_PASSWORD_DEFAULT
+#define MQTT_PASSWORD_DEFAULT   "CHANGE_ME"       // placeholder: password broker
+#endif
+#ifndef MQTT_BASE_TOPIC_DEFAULT
 #define MQTT_BASE_TOPIC_DEFAULT "oraquadra2"
+#endif
+#ifndef MQTT_DEVICE_NAME_DEFAULT
 #define MQTT_DEVICE_NAME_DEFAULT "OraQuadra2"
+#endif
 
 // ---- Indirizzi EEPROM RIALLOCATI a 512+ (la V1.3.0 usa 0-459; 49-248 e' il
 //      testo scorrevole, quindi gli indirizzi storici 23-217 NON sono piu' liberi).
