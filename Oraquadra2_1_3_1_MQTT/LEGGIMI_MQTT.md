@@ -54,7 +54,10 @@ Tre interventi in `mqtt_oraquadra.h`, tutti localizzati:
 ## File di questa cartella
 
 - `Oraquadra2_1_3_1_MQTT.ino` — sketch V1.3.0 con 7 innesti minimi per l'MQTT.
-- `webpage.h` — pagina web V1.3.0 (invariata).
+- `webpage.h` — pagina web V1.3.0 **con aggiunte**: pannello MQTT, toggle
+  "Albero di Natale", riga "Firmware 1.3.1-mqtt" (circa 108 righe in piu'
+  rispetto a `Oraquadra2_1_3_0/webpage.h`). Non sostituirla con quella upstream
+  senza riportare queste aggiunte.
 - `mqtt_oraquadra.h` — **tutto** il codice MQTT + modalita random + modalita test
   (config, callback comandi, auto-discovery, stato, riconnessione, hook di loop).
 
@@ -67,8 +70,8 @@ Tre interventi in `mqtt_oraquadra.h`, tutti localizzati:
   broker si configura via le route web `/setMqttSettings` e `/getMqttStatus`
   (gia' registrate; i valori vengono salvati in EEPROM).
 - **Home Assistant auto-discovery**: luce (on/off + luminosita + colore RGB),
-  selettore effetto con **tutti i 40 preset** della V1.3.0 (inclusi i nuovi
-  Arkanoid..Lava Lamp), sensori (ora, WiFi/RSSI, IP, stato), switch lampeggio,
+  selettore effetto con **tutti i 41 preset** (0-40: i 40 della V1.3.0, inclusi
+  i nuovi Arkanoid..Lava Lamp, piu' il 40 "Albero di Natale"), sensori (ora, WiFi/RSSI, IP, stato), switch lampeggio,
   fasce giorno/sera/notte, **switch modalita random**, **modalita test** con
   ora/minuto fittizi, pulsante riavvio.
 - **Modalita random**: cambia effetto automaticamente a intervalli.
@@ -125,7 +128,7 @@ Aggiunte rispetto al port MQTT base (tutte selezionabili da web e da Home Assist
   un carico CPU diretto; viene dedotto contando i giri di `loop()` al secondo
   (`cpuUsageTick()`/`estimatedCpuUsage()`) e confrontandoli con il massimo
   osservato dinamicamente: piu' i giri/sec calano, piu' alta e' la stima del carico.
-- Stringa firmware aggiornata a **"1.3.0-mqtt"**.
+- Stringa firmware aggiornata a **"1.3.0-mqtt"** (oggi **"1.3.1-mqtt"**, vedi Changelog).
 
 ### 4. Esposizione MQTT dei controlli V1.3.0 (testo scorrevole + overlay digitale)
 - Controlli gia' presenti nel firmware V1.3.0, ora agganciati a MQTT riusando le
