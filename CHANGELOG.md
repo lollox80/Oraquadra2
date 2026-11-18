@@ -144,6 +144,11 @@ Tre interventi localizzati in `Oraquadra2_1_3_1_MQTT/mqtt_oraquadra.h`:
 - **Testo scorrevole via MQTT**: gli accenti (à/è/ì…) non vengono convertiti come
   nel pannello web (filtro ASCII). Per testo normale va bene; è l'unico punto da
   rifinire se serve.
+- **`LED_PIN`: hardware locale ≠ upstream.** Sull'hardware di Lollo il DIN della
+  matrice è sul **GPIO2** (upstream: **GPIO5**). Con il pin sbagliato web, WiFi,
+  ora e MQTT funzionano ma la matrice resta spenta (diagnosticato il 30/06/2026).
+  Per il flash locale `#define LED_PIN 2`; nei commit/push su GitHub va lasciato
+  il valore upstream `LED_PIN 5` (vedi Regola 7 di `CLAUDE.md`).
 
 ---
 
@@ -151,9 +156,9 @@ Tre interventi localizzati in `Oraquadra2_1_3_1_MQTT/mqtt_oraquadra.h`:
 
 Backlog dei miglioramenti suggeriti, in ordine di impatto:
 
-- **Home Assistant:** marcare i sensori diagnostici come `entity_category: diagnostic`,
-  non usare `retain` sulla telemetria ad alta frequenza, aggiungere `expire_after`
-  e `configuration_url` nel blocco `device` (link alla web UI da HA).
+- **Home Assistant:** non usare `retain` sulla telemetria ad alta frequenza.
+  (`entity_category: diagnostic`, `expire_after` e `configuration_url` sono già
+  fatti: vedi "2026-06-30 — Migliorie Home Assistant".)
 - **Uso quotidiano:** sensore di luce ambientale (LDR su ADC o BH1750 I²C) per
   luminosità automatica reale, oltre alle 3 fasce orarie fisse.
 - **Web/grafica:** anteprima live della matrice 16×16 (canvas), passaggio da
