@@ -33,3 +33,6 @@ _archivio_versioni_precedenti/
 
 # Credenziali MQTT locali (mai committare)
 mqtt_secrets.h
+
+# Segreti ESPHome / Home Assistant: mai nel repository (25/11/2026)
+secrets.yaml

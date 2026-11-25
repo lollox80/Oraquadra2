@@ -296,24 +296,24 @@ light:
 
 # Configurazione WiFi
 wifi:
-  ssid: "Lollo&Je&Luce"  # Nome della tua rete WiFi
-  password: "110419802106199230042020"  # Password della tua rete WiFi
+  ssid: !secret wifi_ssid  # Nome della tua rete WiFi
+  password: !secret wifi_password  # Password della tua rete WiFi
   power_save_mode: none
   fast_connect: true
   reboot_timeout: 5min
   ap:
     ssid: "${device_name}_fallback"
-    password: "12345678"
+    password: !secret oraquadra2_ap_password
 
 # Configurazione OTA
 ota:
   - platform: esphome
-    password: "filosofia11"
+    password: !secret oraquadra2_ota_password
 
 # Configurazione API per Home Assistant
 api:
   encryption:
-    key: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+    key: !secret oraquadra2_api_key
 
 # Configurazione NTP
 time:
@@ -399,7 +399,7 @@ web_server:
   port: 80
   auth:
     username: admin
-    password: "filosofia11"
+    password: !secret oraquadra2_web_password
   include_internal: true
   version: 2
 
